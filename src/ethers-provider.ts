@@ -103,6 +103,13 @@ export class EthersProvider {
       return this._ethersProvider.network;
     }
 
+    if(this._providerContext.customNetwork){
+      return {
+        chainId: this._providerContext.customNetwork.nativeWrappedTokenInfo.chainId,
+        name: this._providerContext.customNetwork.nameNetwork
+      }
+    }
+
     // @ts-ignore
     if (this._ethersProvider.provider) {
       // @ts-ignore
