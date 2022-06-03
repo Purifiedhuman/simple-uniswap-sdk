@@ -1,4 +1,7 @@
 import { JsonFragment } from '@ethersproject/abi';
+import uniswapRouterV3AbiJson from '../ABI/uniswap-router-v3.json';
+import uniswapFactoryV3AbiJson from '../ABI/uniswap-factory-v3.json';
+import uniswapQuoterV3AbiJson from '../ABI/uniswap-quoter-v3.json';
 
 export class UniswapContractContextV3 {
   /**
@@ -19,15 +22,15 @@ export class UniswapContractContextV3 {
   /**
    * Uniswap router
    */
-  public static routerAbi: JsonFragment[] = require('../ABI/uniswap-router-v3.json');
+  public static routerAbi: JsonFragment[] = uniswapRouterV3AbiJson;
 
   /**
    * Uniswap factory
    */
-  public static factoryAbi: JsonFragment[] = require('../ABI/uniswap-factory-v3.json');
+  public static factoryAbi: JsonFragment[] = uniswapFactoryV3AbiJson;
 
   /**
    * Uniswap quoter
    */
-  public static quoterAbi: JsonFragment[] = require('../ABI/uniswap-quoter-v3.json');
+  public static quoterAbi: JsonFragment[] = uniswapQuoterV3AbiJson;
 }
