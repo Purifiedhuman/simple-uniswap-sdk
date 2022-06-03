@@ -10,6 +10,6 @@ export class TokenFactoryPublic extends TokenFactory {
     tokenContractAddress: string,
     providerContext: ChainIdAndProvider | EthereumProvider
   ) {
-    super(tokenContractAddress, new EthersProvider(providerContext));
+    super(tokenContractAddress, new EthersProvider(providerContext), providerContext.customNetwork);
   }
 }
