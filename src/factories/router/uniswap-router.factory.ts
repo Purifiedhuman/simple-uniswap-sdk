@@ -1932,7 +1932,7 @@ export class UniswapRouterFactory {
 
     if (
       tradeDirection === TradeDirection.output &&
-      uniswapVersion === UniswapVersion.v3
+      (uniswapVersion === UniswapVersion.v3 || UniswapVersion.v2)
     ) {
       return new BigNumber(expectedConvertQuote)
         .plus(
