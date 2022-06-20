@@ -13,6 +13,7 @@ import {
 } from './models/uniswap-pair-contexts';
 import { UniswapPairFactoryContext } from './models/uniswap-pair-factory-context';
 import { UniswapPairSettings } from './models/uniswap-pair-settings';
+import { UniswapLiquidityFactory } from './uniswap-liquidity.factory';
 import { UniswapPairFactory } from './uniswap-pair.factory';
 
 export class UniswapPair {
@@ -122,7 +123,7 @@ export class UniswapPair {
   /**
    * Create factory to be able to call methods on the 2 tokens
    */
-  public async createFactory(): Promise<UniswapPairFactory> {
+  public async createSwapFactory(): Promise<UniswapPairFactory> {
     if (this._uniswapPairContext.settings?.customNetwork === undefined) {
       const chainId = this._ethersProvider.network().chainId;
       if (
@@ -166,4 +167,52 @@ export class UniswapPair {
 
     return new UniswapPairFactory(new CoinGecko(), uniswapFactoryContext);
   }
+
+    /**
+   * Create factory to be able to call methods on the 2 tokens
+   */
+     public async createLiquidityFactory(): Promise<UniswapLiquidityFactory> {
+      if (this._uniswapPairContext.settings?.customNetwork === undefined) {
+        const chainId = this._ethersProvider.network().chainId;
+        if (
+          chainId !== ChainId.MAINNET &&
+          chainId !== ChainId.ROPSTEN &&
+          chainId !== ChainId.RINKEBY &&
+          chainId !== ChainId.GÖRLI &&
+          chainId !== ChainId.KOVAN
+        ) {
+          throw new UniswapError(
+            `ChainId - ${chainId} is not supported. This lib only supports mainnet(1), ropsten(4), kovan(42), rinkeby(4), and görli(5)`,
+            ErrorCodes.chainIdNotSupported
+          );
+        }
+      }
+  
+      const tokensFactory = new TokensFactory(
+        this._ethersProvider,
+        this._uniswapPairContext.settings?.customNetwork
+      );
+      const tokens = await tokensFactory.getTokens([
+        this._uniswapPairContext.fromTokenContractAddress,
+        this._uniswapPairContext.toTokenContractAddress,
+      ]);
+  
+      const uniswapFactoryContext: UniswapPairFactoryContext = {
+        fromToken: tokens.find(
+          (t) =>
+            t.contractAddress.toLowerCase() ===
+            this._uniswapPairContext.fromTokenContractAddress.toLowerCase()
+        )!,
+        toToken: tokens.find(
+          (t) =>
+            t.contractAddress.toLowerCase() ===
+            this._uniswapPairContext.toTokenContractAddress.toLowerCase()
+        )!,
+        ethereumAddress: this._uniswapPairContext.ethereumAddress,
+        settings: this._uniswapPairContext.settings || new UniswapPairSettings(),
+        ethersProvider: this._ethersProvider,
+      };
+  
+      return new UniswapLiquidityFactory(new CoinGecko(), uniswapFactoryContext);
+    }
 }
