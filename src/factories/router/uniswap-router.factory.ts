@@ -144,10 +144,10 @@ export class UniswapRouterFactory {
     if (this._settings.uniswapVersions.includes(UniswapVersion.v2)) {
       contractCallContext.push({
         reference: UniswapVersion.v2,
-        contractAddress: uniswapContracts.v2.getPairAddress(
+        contractAddress: uniswapContracts.v2.getFactoryAddress(
           this._settings.cloneUniswapContractDetails
         ),
-        abi: UniswapContractContextV2.pairAbi,
+        abi: UniswapContractContextV2.factoryAbi,
         calls: [],
       });
 
