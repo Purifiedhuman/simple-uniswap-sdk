@@ -55,11 +55,9 @@ const routeTest = async () => {
 
   // const startTime = new Date().getTime();
 
-  const uniswapPairFactory = await uniswapMain.createSwapFactory();
+  const uniswapLiquidityFactory = await uniswapMain.createLiquidityFactory();
 
-  // console.log(await uniswapPairFactory.generateApproveMaxAllowanceData(UniswapVersion.v2));
-
-  const trade = await uniswapPairFactory.trade('1', TradeDirection.input);
+  const trade = await uniswapLiquidityFactory.trade('2', TradeDirection.output);
   
   console.log('expectedConvertQuote', trade.expectedConvertQuote);
 };

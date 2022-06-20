@@ -21,4 +21,13 @@ export class UniswapPairContractFactoryV2 {
   public async balanceOf(address: string): Promise<string> {
     return (await this._uniswapPairFactory.balanceOf(address)).toHexString();
   }
+
+  public async getTokens() {
+    const tokenA = await this._uniswapPairFactory.token0();
+    const tokenB = await this._uniswapPairFactory.token1();
+
+    return {
+      tokenA, tokenB
+    }
+  }
 }

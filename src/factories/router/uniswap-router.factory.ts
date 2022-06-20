@@ -42,7 +42,6 @@ import { UniswapContractContextV3 } from '../../uniswap-contract-context/uniswap
 import { TradeDirection } from '../pair/models/trade-direction';
 import { Transaction } from '../pair/models/transaction';
 import { UniswapPairSettings } from '../pair/models/uniswap-pair-settings';
-import { UniswapPairContractFactoryV2 } from '../pair/v2/uniswap-pair-contract.factory.v2';
 import { AllowanceAndBalanceOf } from '../token/models/allowance-balance-of';
 import { Token } from '../token/models/token';
 import { TokensFactory } from '../token/tokens.factory';
@@ -78,13 +77,6 @@ export class UniswapRouterFactory {
   private _uniswapContractFactoryV2 = new UniswapContractFactoryV2(
     this._ethersProvider,
     uniswapContracts.v2.getFactoryAddress(
-      this._settings.cloneUniswapContractDetails
-    )
-  );
-
-  private _uniswapPairContractFactoryV2 = new UniswapPairContractFactoryV2(
-    this._ethersProvider,
-    uniswapContracts.v2.getPairAddress(
       this._settings.cloneUniswapContractDetails
     )
   );
@@ -482,32 +474,97 @@ export class UniswapRouterFactory {
     direction: TradeDirection
   ){
     const tradeAmount = this.formatAmountToTrade(amountToTrade, direction);
-    console.log(tradeAmount);
+    console.log('tradeAmount', tradeAmount);
 
     const routes = await this.getAllPossibleRoutes(true);
 
     const contractCallContext: ContractCallContext<RouteContext[]>[] = [];
-    if (this._settings.uniswapVersions.includes(UniswapVersion.v2)) {
-      contractCallContext.push({
-        reference: UniswapVersion.v2,
-        contractAddress: uniswapContracts.v2.getRouterAddress(
-          this._settings.cloneUniswapContractDetails
-        ),
-        abi: UniswapContractContextV2.routerAbi,
-        calls: [],
-        context: routes.v2,
-      });
 
+    if (this._settings.uniswapVersions.includes(UniswapVersion.v2)) {
+
+      //directOverride ensure tokenA and tokenB direct pair only (0 or 1 in length)
       for(let i = 0; i < routes.v2.length; i++){
         const routeCombo = routes.v2[i].route.map((c) => {
           return removeEthFromContractAddress(c.contractAddress);
         });
-
-        const pairAddress = await this._uniswapContractFactoryV2.getPair(routeCombo[0], routeCombo[1]);
         
-        console.log('asd', pairAddress);
+        const pairAddress = await this._uniswapContractFactoryV2.getPair(routeCombo[0], routeCombo[1]);
+
+        contractCallContext.push({
+          reference: `${UniswapVersion.v2}-pair`,
+          contractAddress: pairAddress,
+          abi: UniswapContractContextV2.pairAbi,
+          calls: [],
+          context: routes.v2,
+        });
+
+        contractCallContext[0].calls.push({
+          reference: `token0-${i}`,
+          methodName: 'token0',
+          methodParameters: [],
+        });
+
+        contractCallContext[0].calls.push({
+          reference: `token1-${i}`,
+          methodName: 'token1',
+          methodParameters: [],
+        });
+
+        contractCallContext[0].calls.push({
+          reference: `getReserves-${i}`,
+          methodName: 'getReserves',
+          methodParameters: [],
+        });
+
+        contractCallContext[0].calls.push({
+          reference: `balanceOf-${i}`,
+          methodName: 'balanceOf',
+          methodParameters: [this._ethereumAddress],
+        });
       }
     }
+
+
+    const contractCallResults = await this._multicall.call(contractCallContext);
+
+    let token0Address = '';
+    let token1Address = '';
+    let getReserves = '';
+    let balanceOf = '';
+    
+    for (const key in contractCallResults.results){
+      const contractCallReturnContext = contractCallResults.results[key];
+      if(contractCallReturnContext){
+        for(let i = 0; i < contractCallReturnContext.callsReturnContext.length; i++){
+          const callReturnContext = contractCallReturnContext.callsReturnContext[i];
+          
+          if (!callReturnContext.success) {
+            continue;
+          }
+
+          switch(callReturnContext.reference){
+            case 'token0-0':
+              token0Address = callReturnContext.returnValues[0];
+              break;
+            case 'token1-0':
+              token1Address = callReturnContext.returnValues[0];
+              break;
+            case 'getReserves-0':
+              getReserves = callReturnContext.returnValues[0];
+              break;
+            case 'balanceOf-0':
+              balanceOf = callReturnContext.returnValues[0];
+              break;
+          }
+
+        }
+      }
+    }
+
+    console.log('token0Address', token0Address);
+    console.log('token1Address', token1Address);
+    console.log('getReserves', getReserves);
+    console.log('balanceOf', balanceOf);
 
   }
 
