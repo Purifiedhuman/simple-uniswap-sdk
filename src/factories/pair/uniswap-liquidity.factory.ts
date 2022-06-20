@@ -4,10 +4,6 @@ import { CoinGecko } from '../../coin-gecko';
 import { Constants } from '../../common/constants';
 import { ErrorCodes } from '../../common/errors/error-codes';
 import { UniswapError } from '../../common/errors/uniswap-error';
-import {
-  removeEthFromContractAddress,
-  turnTokenIntoEthForResponse,
-} from '../../common/tokens/eth';
 import { deepClone } from '../../common/utils/deep-clone';
 import { getTradePath } from '../../common/utils/trade-path';
 import { TradePath } from '../../enums/trade-path';
@@ -20,8 +16,8 @@ import { UniswapRouterFactory } from '../router/uniswap-router.factory';
 import { AllowanceAndBalanceOf } from '../token/models/allowance-balance-of';
 import { Token } from '../token/models/token';
 import { TokenFactory } from '../token/token.factory';
-import { CurrentTradeContext } from './models/current-trade-context';
-import { TradeContext } from './models/trade-context';
+import { CurrencyLiquidityTradeContext } from './models/current-liquidity-trade-context';
+import { LiquidityTradeContext } from './models/liquidity-trade-context';
 import { TradeDirection } from './models/trade-direction';
 import { Transaction } from './models/transaction';
 import { UniswapPairFactoryContext } from './models/uniswap-pair-factory-context';
@@ -50,8 +46,8 @@ export class UniswapLiquidityFactory {
   );
 
   private _watchingBlocks = false;
-  private _currentTradeContext: CurrentTradeContext | undefined;
-  private _quoteChanged$: Subject<TradeContext> = new Subject<TradeContext>();
+  private _currentLiquidityTradeContext: CurrencyLiquidityTradeContext | undefined;
+  private _quoteChanged$: Subject<LiquidityTradeContext> = new Subject<LiquidityTradeContext>();
 
   constructor(
     private _coinGecko: CoinGecko,
@@ -125,12 +121,12 @@ export class UniswapLiquidityFactory {
   private async executeTradePath(
     amount: BigNumber,
     direction: TradeDirection
-  ): Promise<TradeContext> {
+  ): Promise<LiquidityTradeContext> {
     switch (this.tradePath()) {
       case TradePath.erc20ToEth:
-        return await this.findBestPriceAndPathErc20ToEth(amount, direction);
+        // return await this.findBestPriceAndPathErc20ToEth(amount, direction);
       case TradePath.ethToErc20:
-        return await this.findBestPriceAndPathEthToErc20(amount, direction);
+        // return await this.findBestPriceAndPathEthToErc20(amount, direction);
       case TradePath.erc20ToErc20:
         return await this.findBestPriceAndPathErc20ToErc20(amount, direction);
       default:
@@ -160,11 +156,11 @@ export class UniswapLiquidityFactory {
   public async trade(
     amount: string,
     direction: TradeDirection = TradeDirection.input
-  ): Promise<TradeContext> {
+  ): Promise<LiquidityTradeContext> {
     this.destroy();
 
     const trade = await this.executeTradePath(new BigNumber(amount), direction);
-    this._currentTradeContext = this.buildCurrentTradeContext(trade);
+    this._currentLiquidityTradeContext = this.buildCurrentTradeContext(trade);
 
     this.watchTradePrice();
 
@@ -290,90 +286,16 @@ export class UniswapLiquidityFactory {
    * Build the current trade context
    * @param trade The trade context
    */
-  private buildCurrentTradeContext(trade: TradeContext): CurrentTradeContext {
+  private buildCurrentTradeContext(trade: LiquidityTradeContext): CurrencyLiquidityTradeContext {
     return deepClone({
       baseConvertRequest: trade.baseConvertRequest,
       expectedConvertQuote: trade.expectedConvertQuote,
       quoteDirection: trade.quoteDirection,
-      fromToken: trade.fromToken,
-      toToken: trade.toToken,
-      liquidityProviderFee: trade.liquidityProviderFee,
+      tokenA: trade.tokenA,
+      tokenB: trade.tokenB,
       transaction: trade.transaction,
-      routeText: trade.routeText,
       tradeExpires: trade.tradeExpires,
     });
-  }
-
-  /**
-   * finds the best price and path for Erc20ToEth
-   * @param baseConvertRequest The base convert request can be both input or output direction
-   * @param direction The direction you want to get the quote from
-   */
-  private async findBestPriceAndPathErc20ToEth(
-    baseConvertRequest: BigNumber,
-    direction: TradeDirection
-  ): Promise<TradeContext> {
-    const bestRouteQuotes = await this._routes.findBestRoute(
-      baseConvertRequest,
-      direction
-    );
-
-    const bestRouteQuote = bestRouteQuotes.bestRouteQuote;
-
-    const tradeContext: TradeContext = {
-      uniswapVersion: bestRouteQuote.uniswapVersion,
-      quoteDirection: direction,
-      baseConvertRequest: baseConvertRequest.toFixed(),
-      minAmountConvertQuote:
-        direction === TradeDirection.input
-          ? bestRouteQuote.expectedConvertQuoteOrTokenAmountInMaxWithSlippage
-          : null,
-      maximumSent:
-        direction === TradeDirection.input
-          ? null
-          : bestRouteQuote.expectedConvertQuoteOrTokenAmountInMaxWithSlippage,
-      expectedConvertQuote: bestRouteQuote.expectedConvertQuote,
-      liquidityProviderFee:
-        direction === TradeDirection.input
-          ? baseConvertRequest
-              .times(bestRouteQuote.liquidityProviderFee)
-              .toFixed(this.fromToken.decimals)
-          : new BigNumber(bestRouteQuote.expectedConvertQuote)
-              .times(bestRouteQuote.liquidityProviderFee)
-              .toFixed(this.fromToken.decimals),
-      liquidityProviderFeePercent: bestRouteQuote.liquidityProviderFee,
-      tradeExpires: bestRouteQuote.tradeExpires,
-      routePathTokenMap: bestRouteQuote.routePathArrayTokenMap,
-      routeText: bestRouteQuote.routeText,
-      routePath: bestRouteQuote.routePathArray.map((r) =>
-        removeEthFromContractAddress(r)
-      ),
-      hasEnoughAllowance: bestRouteQuotes.hasEnoughAllowance,
-      approvalTransaction: !bestRouteQuotes.hasEnoughAllowance
-        ? await this.generateApproveMaxAllowanceData(
-            bestRouteQuote.uniswapVersion
-          )
-        : undefined,
-      toToken: turnTokenIntoEthForResponse(
-        this.toToken,
-        this._uniswapPairFactoryContext.settings?.customNetwork?.nativeCurrency
-      ),
-      toBalance: new BigNumber(bestRouteQuotes.toBalance)
-        .shiftedBy(this.toToken.decimals * -1)
-        .toFixed(),
-      fromToken: this.fromToken,
-      fromBalance: {
-        hasEnough: bestRouteQuotes.hasEnoughBalance,
-        balance: bestRouteQuotes.fromBalance,
-      },
-      transaction: bestRouteQuote.transaction,
-      gasPriceEstimatedBy: bestRouteQuote.gasPriceEstimatedBy,
-      allTriedRoutesQuotes: bestRouteQuotes.triedRoutesQuote,
-      quoteChanged$: this._quoteChanged$,
-      destroy: () => this.destroy(),
-    };
-
-    return tradeContext;
   }
 
   /**
@@ -384,123 +306,40 @@ export class UniswapLiquidityFactory {
   private async findBestPriceAndPathErc20ToErc20(
     baseConvertRequest: BigNumber,
     direction: TradeDirection
-  ): Promise<TradeContext> {
-    const bestRouteQuotes = await this._routes.findBestRoute(
+  ): Promise<LiquidityTradeContext> {
+    const liquidityQuotes = await this._routes.getLiquidityQuote(
       baseConvertRequest,
       direction
     );
-    const bestRouteQuote = bestRouteQuotes.bestRouteQuote;
 
-    const tradeContext: TradeContext = {
-      uniswapVersion: bestRouteQuote.uniswapVersion,
+    const tradeContext: LiquidityTradeContext = {
+      uniswapVersion: UniswapVersion.v2, //hardcode first
       quoteDirection: direction,
+      isFirstSupplier: true,
       baseConvertRequest: baseConvertRequest.toFixed(),
-      minAmountConvertQuote:
-        direction === TradeDirection.input
-          ? bestRouteQuote.expectedConvertQuoteOrTokenAmountInMaxWithSlippage
-          : null,
-      maximumSent:
-        direction === TradeDirection.input
-          ? null
-          : bestRouteQuote.expectedConvertQuoteOrTokenAmountInMaxWithSlippage,
-      expectedConvertQuote: bestRouteQuote.expectedConvertQuote,
-      liquidityProviderFee:
-        direction === TradeDirection.input
-          ? baseConvertRequest
-              .times(bestRouteQuote.liquidityProviderFee)
-              .toFixed(this.fromToken.decimals)
-          : new BigNumber(bestRouteQuote.expectedConvertQuote)
-              .times(bestRouteQuote.liquidityProviderFee)
-              .toFixed(this.fromToken.decimals),
-      liquidityProviderFeePercent: bestRouteQuote.liquidityProviderFee,
-      tradeExpires: bestRouteQuote.tradeExpires,
-      routePathTokenMap: bestRouteQuote.routePathArrayTokenMap,
-      routeText: bestRouteQuote.routeText,
-      routePath: bestRouteQuote.routePathArray,
-      hasEnoughAllowance: bestRouteQuotes.hasEnoughAllowance,
-      approvalTransaction: !bestRouteQuotes.hasEnoughAllowance
-        ? await this.generateApproveMaxAllowanceData(
-            bestRouteQuote.uniswapVersion
-          )
-        : undefined,
-      toToken: this.toToken,
-      toBalance: new BigNumber(bestRouteQuotes.toBalance)
-        .shiftedBy(this.toToken.decimals * -1)
-        .toFixed(),
-      fromToken: this.fromToken,
-      fromBalance: {
-        hasEnough: bestRouteQuotes.hasEnoughBalance,
-        balance: bestRouteQuotes.fromBalance,
+      expectedConvertQuote: "", //Take from liquidityQuotes
+      minTokenAAmountConvertQuote: "", //Take from liquidityQuotes
+      minTokenBAmountConvertQuote: "", //Take from liquidityQuotes
+      tradeExpires: 123, //Take from liquidityQuotes
+      tokenAHasEnoughAllowance: true,
+      tokenBHasEnoughAllowance: true,
+      tokenAApprovalTransaction: undefined,
+      tokenABpprovalTransaction: undefined,
+      tokenA: this.fromToken,
+      tokenABalance: {
+        hasEnough: true,
+        balance: "",
       },
-      transaction: bestRouteQuote.transaction,
-      gasPriceEstimatedBy: bestRouteQuote.gasPriceEstimatedBy,
-      allTriedRoutesQuotes: bestRouteQuotes.triedRoutesQuote,
-      quoteChanged$: this._quoteChanged$,
-      destroy: () => this.destroy(),
-    };
-
-    return tradeContext;
-  }
-
-  /**
-   * Find the best price and route path to take (will round down the slippage)
-   * @param baseConvertRequest The base convert request can be both input or output direction
-   * @param direction The direction you want to get the quote from
-   */
-  private async findBestPriceAndPathEthToErc20(
-    baseConvertRequest: BigNumber,
-    direction: TradeDirection
-  ): Promise<TradeContext> {
-    const bestRouteQuotes = await this._routes.findBestRoute(
-      baseConvertRequest,
-      direction
-    );
-    const bestRouteQuote = bestRouteQuotes.bestRouteQuote;
-
-    const tradeContext: TradeContext = {
-      uniswapVersion: bestRouteQuote.uniswapVersion,
-      quoteDirection: direction,
-      baseConvertRequest: baseConvertRequest.toFixed(),
-      minAmountConvertQuote:
-        direction === TradeDirection.input
-          ? bestRouteQuote.expectedConvertQuoteOrTokenAmountInMaxWithSlippage
-          : null,
-      maximumSent:
-        direction === TradeDirection.input
-          ? null
-          : bestRouteQuote.expectedConvertQuoteOrTokenAmountInMaxWithSlippage,
-      expectedConvertQuote: bestRouteQuote.expectedConvertQuote,
-      liquidityProviderFee:
-        direction === TradeDirection.input
-          ? baseConvertRequest
-              .times(bestRouteQuote.liquidityProviderFee)
-              .toFixed(this.fromToken.decimals)
-          : new BigNumber(bestRouteQuote.expectedConvertQuote)
-              .times(bestRouteQuote.liquidityProviderFee)
-              .toFixed(this.fromToken.decimals),
-      liquidityProviderFeePercent: bestRouteQuote.liquidityProviderFee,
-      tradeExpires: bestRouteQuote.tradeExpires,
-      routePathTokenMap: bestRouteQuote.routePathArrayTokenMap,
-      routeText: bestRouteQuote.routeText,
-      routePath: bestRouteQuote.routePathArray.map((r) =>
-        removeEthFromContractAddress(r)
-      ),
-      hasEnoughAllowance: true,
-      toToken: this.toToken,
-      toBalance: new BigNumber(bestRouteQuotes.toBalance)
-        .shiftedBy(this.toToken.decimals * -1)
-        .toFixed(),
-      fromToken: turnTokenIntoEthForResponse(
-        this.fromToken,
-        this._uniswapPairFactoryContext.settings?.customNetwork?.nativeCurrency
-      ),
-      fromBalance: {
-        hasEnough: bestRouteQuotes.hasEnoughBalance,
-        balance: bestRouteQuotes.fromBalance,
+      tokenB: this.fromToken,
+      tokenBBalance: {
+        hasEnough: true,
+        balance: "",
       },
-      transaction: bestRouteQuote.transaction,
-      gasPriceEstimatedBy: bestRouteQuote.gasPriceEstimatedBy,
-      allTriedRoutesQuotes: bestRouteQuotes.triedRoutesQuote,
+      lpTokensToReceive: "",
+      poolShare: "",
+      transaction: {data: "", from: "", to: "", value : ""},
+      gasPriceEstimatedBy: "",
+      lpBalance: "",
       quoteChanged$: this._quoteChanged$,
       destroy: () => this.destroy(),
     };
@@ -551,30 +390,27 @@ export class UniswapLiquidityFactory {
    * Handle new block for the trade price moving automatically emitting the stream if it changes
    */
   private async handleNewBlock(): Promise<void> {
-    if (this._quoteChanged$.observers.length > 0 && this._currentTradeContext) {
+    if (this._quoteChanged$.observers.length > 0 && this._currentLiquidityTradeContext) {
       const trade = await this.executeTradePath(
-        new BigNumber(this._currentTradeContext.baseConvertRequest),
-        this._currentTradeContext.quoteDirection
+        new BigNumber(this._currentLiquidityTradeContext.baseConvertRequest),
+        this._currentLiquidityTradeContext.quoteDirection
       );
 
       if (
-        trade.fromToken.contractAddress ===
-          this._currentTradeContext.fromToken.contractAddress &&
-        trade.toToken.contractAddress ===
-          this._currentTradeContext.toToken.contractAddress &&
+        trade.tokenA.contractAddress ===
+          this._currentLiquidityTradeContext.tokenA.contractAddress &&
+        trade.tokenB.contractAddress ===
+          this._currentLiquidityTradeContext.tokenB.contractAddress &&
         trade.transaction.from ===
           this._uniswapPairFactoryContext.ethereumAddress
       ) {
         if (
           trade.expectedConvertQuote !==
-            this._currentTradeContext.expectedConvertQuote ||
-          trade.routeText !== this._currentTradeContext.routeText ||
-          trade.liquidityProviderFee !==
-            this._currentTradeContext.liquidityProviderFee ||
-          this._currentTradeContext.tradeExpires >
+            this._currentLiquidityTradeContext.expectedConvertQuote ||
+          this._currentLiquidityTradeContext.tradeExpires >
             this._uniswapRouterFactory.generateTradeDeadlineUnixTime()
         ) {
-          this._currentTradeContext = this.buildCurrentTradeContext(trade);
+          this._currentLiquidityTradeContext = this.buildCurrentTradeContext(trade);
           this._quoteChanged$.next(trade);
         }
       }

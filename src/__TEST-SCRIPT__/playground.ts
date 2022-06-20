@@ -59,7 +59,7 @@ const routeTest = async () => {
 
   // console.log(await uniswapPairFactory.generateApproveMaxAllowanceData(UniswapVersion.v2));
 
-  const trade = await uniswapPairFactory.trade('1', TradeDirection.output);
+  const trade = await uniswapPairFactory.trade('1', TradeDirection.input);
   
   console.log('expectedConvertQuote', trade.expectedConvertQuote);
 };

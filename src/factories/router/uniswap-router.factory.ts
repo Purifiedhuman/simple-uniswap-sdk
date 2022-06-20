@@ -42,6 +42,7 @@ import { UniswapContractContextV3 } from '../../uniswap-contract-context/uniswap
 import { TradeDirection } from '../pair/models/trade-direction';
 import { Transaction } from '../pair/models/transaction';
 import { UniswapPairSettings } from '../pair/models/uniswap-pair-settings';
+import { UniswapPairContractFactoryV2 } from '../pair/v2/uniswap-pair-contract.factory.v2';
 import { AllowanceAndBalanceOf } from '../token/models/allowance-balance-of';
 import { Token } from '../token/models/token';
 import { TokensFactory } from '../token/tokens.factory';
@@ -69,6 +70,13 @@ export class UniswapRouterFactory {
   private _uniswapRouterContractFactoryV2 = new UniswapRouterContractFactoryV2(
     this._ethersProvider,
     uniswapContracts.v2.getRouterAddress(
+      this._settings.cloneUniswapContractDetails
+    )
+  );
+
+  private _uniswapPairContractFactoryV2 = new UniswapPairContractFactoryV2(
+    this._ethersProvider,
+    uniswapContracts.v2.getPairAddress(
       this._settings.cloneUniswapContractDetails
     )
   );
@@ -101,10 +109,10 @@ export class UniswapRouterFactory {
    * Get all possible routes will only go up to 4 due to gas increase the more routes
    * you go.
    */
-  public async getAllPossibleRoutes(): Promise<AllPossibleRoutes> {
+  public async getAllPossibleRoutes(directOverride = false): Promise<AllPossibleRoutes> {
     let findPairs: Token[][][] = [];
 
-    if (!this._settings.disableMultihops) {
+    if (!this._settings.disableMultihops && !directOverride) {
       findPairs = [
         this.mainCurrenciesPairsForFromToken,
         this.mainCurrenciesPairsForToToken,
@@ -451,6 +459,47 @@ export class UniswapRouterFactory {
           ? allowanceAndBalances.enoughV2Allowance
           : allowanceAndBalances.enoughV3Allowance,
     };
+  }
+
+
+
+
+    /**
+   * Get liquidity quote for the amountToTrade
+   * @param amountToTrade The amount to trade
+   * @param direction The direction you want to get the quote from
+   */
+  public async getLiquidityQuote(
+    amountToTrade: BigNumber,
+    direction: TradeDirection
+  ){
+    const tradeAmount = this.formatAmountToTrade(amountToTrade, direction);
+
+    const routes = await this.getAllPossibleRoutes(true);
+
+    const contractCallContext: ContractCallContext<RouteContext[]>[] = [];
+    if (this._settings.uniswapVersions.includes(UniswapVersion.v2)) {
+      contractCallContext.push({
+        reference: UniswapVersion.v2,
+        contractAddress: uniswapContracts.v2.getRouterAddress(
+          this._settings.cloneUniswapContractDetails
+        ),
+        abi: UniswapContractContextV2.routerAbi,
+        calls: [],
+        context: routes.v2,
+      });
+
+      for(let i = 0; i < routes.v2.length; i++){
+        const routeCombo = routes.v2[i].route.map((c) => {
+          return removeEthFromContractAddress(c.contractAddress);
+        });
+
+        const pairAddress = await this._uniswapPairContractFactoryV2.getPair(routeCombo[0], routeCombo[1]);
+        
+        console.log('asd', pairAddress);
+      }
+    }
+
   }
 
   /**
