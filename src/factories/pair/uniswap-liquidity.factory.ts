@@ -312,6 +312,8 @@ export class UniswapLiquidityFactory {
       direction
     );
 
+    console.log(liquidityQuotes);
+
     const tradeContext: LiquidityTradeContext = {
       uniswapVersion: UniswapVersion.v2, //hardcode first
       quoteDirection: direction,

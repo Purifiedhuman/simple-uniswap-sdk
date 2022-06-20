@@ -46,6 +46,7 @@ import { UniswapPairContractFactoryV2 } from '../pair/v2/uniswap-pair-contract.f
 import { AllowanceAndBalanceOf } from '../token/models/allowance-balance-of';
 import { Token } from '../token/models/token';
 import { TokensFactory } from '../token/tokens.factory';
+import { UniswapContractFactoryV2 } from '../uniswap-factory/v2/uniswap-contract.factory.v2';
 import { RouterDirection } from './enums/router-direction';
 import { AllPossibleRoutes } from './models/all-possible-routes';
 import { BestRouteQuotes } from './models/best-route-quotes';
@@ -70,6 +71,13 @@ export class UniswapRouterFactory {
   private _uniswapRouterContractFactoryV2 = new UniswapRouterContractFactoryV2(
     this._ethersProvider,
     uniswapContracts.v2.getRouterAddress(
+      this._settings.cloneUniswapContractDetails
+    )
+  );
+
+  private _uniswapContractFactoryV2 = new UniswapContractFactoryV2(
+    this._ethersProvider,
+    uniswapContracts.v2.getFactoryAddress(
       this._settings.cloneUniswapContractDetails
     )
   );
@@ -474,6 +482,7 @@ export class UniswapRouterFactory {
     direction: TradeDirection
   ){
     const tradeAmount = this.formatAmountToTrade(amountToTrade, direction);
+    console.log(tradeAmount);
 
     const routes = await this.getAllPossibleRoutes(true);
 
@@ -494,7 +503,7 @@ export class UniswapRouterFactory {
           return removeEthFromContractAddress(c.contractAddress);
         });
 
-        const pairAddress = await this._uniswapPairContractFactoryV2.getPair(routeCombo[0], routeCombo[1]);
+        const pairAddress = await this._uniswapContractFactoryV2.getPair(routeCombo[0], routeCombo[1]);
         
         console.log('asd', pairAddress);
       }
