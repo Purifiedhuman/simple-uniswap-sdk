@@ -14,9 +14,9 @@ import {
 import { UniswapPairFactoryContext } from './models/uniswap-pair-factory-context';
 import { UniswapPairSettings } from './models/uniswap-pair-settings';
 import { UniswapLiquidityFactory } from './uniswap-liquidity.factory';
-import { UniswapPairFactory } from './uniswap-pair.factory';
+import { UniswapSwapFactory } from './uniswap-swap.factory';
 
-export class UniswapPair {
+export class UniswapMain {
   private _ethersProvider: EthersProvider;
 
   constructor(
@@ -123,7 +123,7 @@ export class UniswapPair {
   /**
    * Create factory to be able to call methods on the 2 tokens
    */
-  public async createSwapFactory(): Promise<UniswapPairFactory> {
+  public async createSwapFactory(): Promise<UniswapSwapFactory> {
     if (this._uniswapPairContext.settings?.customNetwork === undefined) {
       const chainId = this._ethersProvider.network().chainId;
       if (
@@ -165,7 +165,7 @@ export class UniswapPair {
       ethersProvider: this._ethersProvider,
     };
 
-    return new UniswapPairFactory(new CoinGecko(), uniswapFactoryContext);
+    return new UniswapSwapFactory(new CoinGecko(), uniswapFactoryContext);
   }
 
     /**

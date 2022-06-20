@@ -1,7 +1,7 @@
 import { UniswapVersion } from '../enums/uniswap-version';
 import { TradeDirection } from '../factories/pair/models/trade-direction';
 import { UniswapPairSettings } from '../factories/pair/models/uniswap-pair-settings';
-import { UniswapPair } from '../factories/pair/uniswap-pair';
+import { UniswapMain } from '../factories/pair/uniswap-main';
 
 // WBTC - 0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599
 // FUN - 0x419D0d8BdD9aF5e606Ae2232ed285Aff190E711b
@@ -17,7 +17,7 @@ const routeTest = async () => {
   const toTokenContractAddress = '0xC285cc080a40aE0Fb4Ae198b2FB5cbdb4A7F3E66'; // 0x1985365e9f78359a9B6AD760e32412f4a445E862
   const ethereumAddress = '0xa207aDd901BF900C81Feb04D33968a0132bD68DA';
 
-  const uniswapPair = new UniswapPair({
+  const uniswapMain = new UniswapMain({
     fromTokenContractAddress,
     toTokenContractAddress,
     ethereumAddress,
@@ -55,7 +55,7 @@ const routeTest = async () => {
 
   // const startTime = new Date().getTime();
 
-  const uniswapPairFactory = await uniswapPair.createLiquidityFactory();
+  const uniswapPairFactory = await uniswapMain.createSwapFactory();
 
   // console.log(await uniswapPairFactory.generateApproveMaxAllowanceData(UniswapVersion.v2));
 
