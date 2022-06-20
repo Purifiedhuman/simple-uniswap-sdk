@@ -23,8 +23,8 @@ export {
   UniswapPairContextForProviderUrl,
 } from './factories/pair/models/uniswap-pair-contexts';
 export { UniswapPairSettings } from './factories/pair/models/uniswap-pair-settings';
-export { UniswapMain as UniswapPair } from './factories/pair/uniswap-main';
-export { UniswapSwapFactory as UniswapPairFactory } from './factories/pair/uniswap-swap.factory';
+export { UniswapMain } from './factories/pair/uniswap-main';
+export { UniswapSwapFactory } from './factories/pair/uniswap-swap.factory';
 export { UniswapLiquidityFactory } from './factories/pair/uniswap-liquidity.factory';
 export { UniswapPairContractFactoryPublicV2 } from './factories/pair/v2/uniswap-pair-contract.factory.public.v2';
 export { RouteQuote } from './factories/router/models/route-quote';
