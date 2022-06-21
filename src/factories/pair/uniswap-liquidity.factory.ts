@@ -52,7 +52,7 @@ export class UniswapLiquidityFactory {
   constructor(
     private _coinGecko: CoinGecko,
     private _uniswapPairFactoryContext: UniswapPairFactoryContext
-  ) {}
+  ) { }
 
   /**
    * The to token
@@ -124,9 +124,9 @@ export class UniswapLiquidityFactory {
   ): Promise<LiquidityTradeContext> {
     switch (this.tradePath()) {
       case TradePath.erc20ToEth:
-        // return await this.findBestPriceAndPathErc20ToEth(amount, direction);
+      // return await this.findBestPriceAndPathErc20ToEth(amount, direction);
       case TradePath.ethToErc20:
-        // return await this.findBestPriceAndPathEthToErc20(amount, direction);
+      // return await this.findBestPriceAndPathEthToErc20(amount, direction);
       case TradePath.erc20ToErc20:
         return await this.findBestPriceAndPathErc20ToErc20(amount, direction);
       default:
@@ -259,11 +259,11 @@ export class UniswapLiquidityFactory {
     const data = this._fromTokenFactory.generateApproveAllowanceData(
       uniswapVersion === UniswapVersion.v2
         ? uniswapContracts.v2.getRouterAddress(
-            this._uniswapPairFactoryContext.settings.cloneUniswapContractDetails
-          )
+          this._uniswapPairFactoryContext.settings.cloneUniswapContractDetails
+        )
         : uniswapContracts.v3.getRouterAddress(
-            this._uniswapPairFactoryContext.settings.cloneUniswapContractDetails
-          ),
+          this._uniswapPairFactoryContext.settings.cloneUniswapContractDetails
+        ),
       '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff'
     );
 
@@ -312,6 +312,8 @@ export class UniswapLiquidityFactory {
       direction
     );
 
+    console.log(liquidityQuotes);
+
     const tradeContext: LiquidityTradeContext = {
       uniswapVersion: UniswapVersion.v2, //hardcode first
       quoteDirection: direction,
@@ -337,7 +339,7 @@ export class UniswapLiquidityFactory {
       },
       lpTokensToReceive: "",
       poolShare: "",
-      transaction: {data: "", from: "", to: "", value : ""},
+      transaction: { data: "", from: "", to: "", value: "" },
       gasPriceEstimatedBy: "",
       lpBalance: "",
       quoteChanged$: this._quoteChanged$,
@@ -398,17 +400,17 @@ export class UniswapLiquidityFactory {
 
       if (
         trade.tokenA.contractAddress ===
-          this._currentLiquidityTradeContext.tokenA.contractAddress &&
+        this._currentLiquidityTradeContext.tokenA.contractAddress &&
         trade.tokenB.contractAddress ===
-          this._currentLiquidityTradeContext.tokenB.contractAddress &&
+        this._currentLiquidityTradeContext.tokenB.contractAddress &&
         trade.transaction.from ===
-          this._uniswapPairFactoryContext.ethereumAddress
+        this._uniswapPairFactoryContext.ethereumAddress
       ) {
         if (
           trade.expectedConvertQuote !==
-            this._currentLiquidityTradeContext.expectedConvertQuote ||
+          this._currentLiquidityTradeContext.expectedConvertQuote ||
           this._currentLiquidityTradeContext.tradeExpires >
-            this._uniswapRouterFactory.generateTradeDeadlineUnixTime()
+          this._uniswapRouterFactory.generateTradeDeadlineUnixTime()
         ) {
           this._currentLiquidityTradeContext = this.buildCurrentTradeContext(trade);
           this._quoteChanged$.next(trade);

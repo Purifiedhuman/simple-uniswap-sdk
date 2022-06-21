@@ -12,7 +12,7 @@ import { UniswapMain } from '../factories/pair/uniswap-main';
 // GTC - 0xde30da39c46104798bb5aa3fe8b9e0e1f348163f
 
 const routeTest = async () => {
-
+  
   const fromTokenContractAddress = '0x8a1aaE68BA6DDbfaDe8359f18321e87d8ab8Fae9'; //'0xEf0e839Cf88E47be676E72D5a9cB6CED99FaD1CF';
   const toTokenContractAddress = '0xC285cc080a40aE0Fb4Ae198b2FB5cbdb4A7F3E66'; // 0x1985365e9f78359a9B6AD760e32412f4a445E862
   const ethereumAddress = '0xa207aDd901BF900C81Feb04D33968a0132bD68DA';
@@ -22,7 +22,7 @@ const routeTest = async () => {
     toTokenContractAddress,
     ethereumAddress,
     chainId: 80001,
-    providerUrl: 'https://speedy-nodes-nyc.moralis.io/14e1580889a1ab1e8b32c126/polygon/mumbai',
+    providerUrl: 'https://polygon-mumbai.g.alchemy.com/v2/LOsCmKKqyJojD5OsLyqlAFVquaysK2Wb',
     settings: new UniswapPairSettings({
       slippage: 0.005,
       deadlineMinutes: 20,
@@ -57,9 +57,11 @@ const routeTest = async () => {
 
   const uniswapLiquidityFactory = await uniswapMain.createLiquidityFactory();
 
-  const trade = await uniswapLiquidityFactory.trade('2', TradeDirection.output);
+  const trade = await uniswapLiquidityFactory.trade('1', TradeDirection.input);
+
   
-  console.log('expectedConvertQuote', trade.expectedConvertQuote);
+  
+  console.log('End', trade.expectedConvertQuote);
 };
 
 routeTest();
