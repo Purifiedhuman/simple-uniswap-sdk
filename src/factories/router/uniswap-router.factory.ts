@@ -467,15 +467,15 @@ export class UniswapRouterFactory {
 
   /**
  * Get liquidity quote for the amountToTrade
- * @param etherAmountToTrade The amount to trade
+ * @param etherAmountToTradeInBigNumber The amount to trade
  * @param direction The direction you want to get the quote from
  */
   public async getLiquidityQuote(
-    etherAmountToTrade: BigNumber,
+    etherAmountToTradeInBigNumber: BigNumber,
     direction: TradeDirection,
     pairedAmount?: BigNumber,
   ): Promise<LiquidityQuote> {
-    const weiTradeAmountInHex = this.formatAmountToTrade(etherAmountToTrade, direction);
+    const weiTradeAmountInHex = this.formatAmountToTrade(etherAmountToTradeInBigNumber, direction);
 
     const routes = await this.getAllPossibleRoutes(true);
 
@@ -581,21 +581,21 @@ export class UniswapRouterFactory {
     if (weiToken0ReserveInHex && weiToken1ReserveInHex) {
       if (direction === TradeDirection.input) {
         //TradeDirection is tokenA(tradeAmount) -> tokenB(expectedConvertQuoteHex), tokenA(_fromToken) = token0
-        if (token0Address === this._fromToken.contractAddress) {
+        if (token0Address === removeEthFromContractAddress(this._fromToken.contractAddress)) {
           weiExpectedConvertQuoteInHex = await this._uniswapRouterContractFactoryV2.quote(
             weiTradeAmountInHex, weiToken0ReserveInHex, weiToken1ReserveInHex);
           //TradeDirection is tokenA(tradeAmount) -> tokenB(expectedConvertQuoteHex), tokenB(_toToken) = token0
-        } else if (token0Address === this._toToken.contractAddress) {
+        } else if (token0Address === removeEthFromContractAddress(this._toToken.contractAddress)) {
           weiExpectedConvertQuoteInHex = await this._uniswapRouterContractFactoryV2.quote(
             weiTradeAmountInHex, weiToken1ReserveInHex, weiToken0ReserveInHex);
         }
       } else if (direction === TradeDirection.output) {
         //TradeDirection is tokenB(tradeAmount) -> tokenA(expectedConvertQuoteHex), tokenB = token1
-        if (token1Address === this._toToken.contractAddress) {
+        if (token1Address === removeEthFromContractAddress(this._toToken.contractAddress)) {
           weiExpectedConvertQuoteInHex = await this._uniswapRouterContractFactoryV2.quote(
             weiTradeAmountInHex, weiToken1ReserveInHex, weiToken0ReserveInHex);
           //TradeDirection is tokenB(tradeAmount) -> tokenA(expectedConvertQuoteHex), tokenB = token0
-        } else if (token1Address === this._fromToken.contractAddress) {
+        } else if (token1Address === removeEthFromContractAddress(this._fromToken.contractAddress)) {
           weiExpectedConvertQuoteInHex = await this._uniswapRouterContractFactoryV2.quote(
             weiTradeAmountInHex, weiToken0ReserveInHex, weiToken1ReserveInHex);
         }
@@ -615,9 +615,9 @@ export class UniswapRouterFactory {
 
     const etherExpectedConvertQuoteInBigNumber = this.formatConvertQuoteToEtherBigNumber(weiExpectedConvertQuoteInBigNumber, direction);
 
-    const etherBaseConvertRequestMinWithSlippageInBigNumber = new BigNumber(etherAmountToTrade)
+    const etherBaseConvertRequestMinWithSlippageInBigNumber = new BigNumber(etherAmountToTradeInBigNumber)
       .minus(
-        new BigNumber(etherAmountToTrade)
+        new BigNumber(etherAmountToTradeInBigNumber)
           .times(this._settings.slippage)
           .toFixed(baseConvertRequestDecimals)
       )
@@ -685,16 +685,30 @@ export class UniswapRouterFactory {
     }
 
     const formattedLpBalance = new BigNumber(weiBalanceOfInHex ?? 0).shiftedBy(lpTokenDecimals * -1).toFixed(lpTokenDecimals);
-    const formattedBaseConvertRequest = new BigNumber(etherAmountToTrade).toFixed(baseConvertRequestDecimals);
+    const formattedBaseConvertRequest = new BigNumber(etherAmountToTradeInBigNumber).toFixed(baseConvertRequestDecimals);
     const formattedExpectedConvertQuote = new BigNumber(etherExpectedConvertQuoteInBigNumber).toFixed(expectedConvertQuoteDecimals);
     const formattedBaseConvertRequestMinWithSlippage = new BigNumber(etherBaseConvertRequestMinWithSlippageInBigNumber).toFixed(baseConvertRequestDecimals);
     const formattedExpectedConvertQuoteMinWithSlippage = new BigNumber(etherExpectedConvertQuoteMinWithSlippageInBigNumber).toFixed(expectedConvertQuoteDecimals);
+
+    const allowanceAndBalances = await this.hasEnoughAllowanceAndBalanceDirect(
+      etherAmountToTradeInBigNumber,
+      baseConvertRequestDecimals,
+      etherExpectedConvertQuoteInBigNumber,
+      expectedConvertQuoteDecimals,
+      direction
+    );
 
     return {
       baseConvertRequest: formattedBaseConvertRequest,
       expectedConvertQuote: formattedExpectedConvertQuote,
       baseConvertRequestMinWithSlippage: formattedBaseConvertRequestMinWithSlippage,
       expectedConvertQuoteMinWithSlippage: formattedExpectedConvertQuoteMinWithSlippage,
+      fromHasEnoughAllowance: allowanceAndBalances.enoughFromV2Allowance,
+      toHasEnoughAllowance: allowanceAndBalances.enoughToV2Allowance,
+      fromHasEnoughBalance: allowanceAndBalances.enoughFromBalance,
+      toHasEnoughBalance: allowanceAndBalances.enoughToBalance,
+      fromBalance: allowanceAndBalances.fromBalance,
+      toBalance: allowanceAndBalances.toBalance,
       transaction,
       tradeExpires: tradeExpires,
       uniswapVersion: UniswapVersion.v2,
@@ -1257,6 +1271,31 @@ export class UniswapRouterFactory {
     return true;
   }
 
+  /**
+ * Has got enough allowance to do the trade
+ * @param amount The amount you want to trade
+ */
+  private hasGotEnoughAllowanceDirect(amount: string, allowance: string, isFromToken: boolean): boolean {
+    let bigNumberAllowance: BigNumber;
+
+    if (isFromToken) {
+      bigNumberAllowance = new BigNumber(allowance).shiftedBy(
+        this._fromToken.decimals * -1
+      );
+    } else {
+      bigNumberAllowance = new BigNumber(allowance).shiftedBy(
+        this._toToken.decimals * -1
+      );
+    }
+
+
+    if (new BigNumber(amount).isGreaterThan(bigNumberAllowance)) {
+      return false;
+    }
+
+    return true;
+  }
+
   private async hasEnoughAllowanceAndBalance(
     amountToTrade: BigNumber,
     bestRouteQuote: RouteQuote,
@@ -1335,6 +1374,205 @@ export class UniswapRouterFactory {
       toBalance: allowanceAndBalancesForTokens.toToken.balanceOf,
     };
   }
+
+  /**
+ * Work out Allowance and Balance Directly with amount to trade and expected convert quote
+ * @param amountToTrade amount to trade in Ether
+ * @param expectedConvertQuote expectedConvertQuote in Ether
+ * @param direction Trade Direction
+ */
+  private async hasEnoughAllowanceAndBalanceDirect(
+    amountToTrade: BigNumber,
+    amountToTradeDecimals: number,
+    expectedConvertQuote: BigNumber,
+    expectedConvertQuoteDecimals: number,
+    direction: TradeDirection
+  ): Promise<{
+    enoughFromBalance: boolean;
+    fromBalance: string;
+    enoughToBalance: boolean
+    toBalance: string;
+    enoughFromV2Allowance: boolean;
+    enoughToV2Allowance: boolean;
+  }> {
+    const allowanceAndBalancesForTokens =
+      await this.getAllowanceAndBalanceForTokens();
+
+    //From and To is fixed, regards of TradeDirection
+    let enoughFromBalance = false;
+    let fromBalance = allowanceAndBalancesForTokens.fromToken.balanceOf;
+
+    let enoughToBalance = false;
+    let toBalance = allowanceAndBalancesForTokens.toToken.balanceOf;
+
+    let enoughFromV2Allowance = false;
+    let enoughToV2Allowance = false;
+
+    switch (this.tradePath()) {
+      case TradePath.ethToErc20:
+        if (direction == TradeDirection.input) {
+          const fromTokenResult = await this.hasGotEnoughBalanceEth(amountToTrade.toFixed());
+
+          const toTokenResult = this.hasGotEnoughBalanceErc20(
+            expectedConvertQuote.toFixed(expectedConvertQuoteDecimals),
+            allowanceAndBalancesForTokens.toToken.balanceOf
+          );
+
+          enoughFromBalance = fromTokenResult.hasEnough;
+          fromBalance = fromTokenResult.balance;
+
+          enoughToBalance = toTokenResult.hasEnough;
+          toBalance = toTokenResult.balance;
+
+          enoughFromV2Allowance = true;
+          enoughToV2Allowance = this.hasGotEnoughAllowanceDirect(
+            expectedConvertQuote.toFixed(expectedConvertQuoteDecimals),
+            allowanceAndBalancesForTokens.toToken.allowanceV2,
+            false,
+          )
+
+        } else {
+          const fromTokenResult = await this.hasGotEnoughBalanceEth(expectedConvertQuote.toFixed(expectedConvertQuoteDecimals));
+
+          const toTokenResult = this.hasGotEnoughBalanceErc20(
+            amountToTrade.toFixed(amountToTradeDecimals),
+            allowanceAndBalancesForTokens.toToken.balanceOf
+          );
+
+          enoughFromBalance = fromTokenResult.hasEnough;
+          fromBalance = fromTokenResult.balance;
+
+          enoughToBalance = toTokenResult.hasEnough;
+          toBalance = toTokenResult.balance;
+
+          enoughFromV2Allowance = true;
+          enoughToV2Allowance = this.hasGotEnoughAllowanceDirect(
+            amountToTrade.toFixed(amountToTradeDecimals),
+            allowanceAndBalancesForTokens.toToken.allowanceV2,
+            false,
+          )
+        }
+        break;
+      case TradePath.erc20ToErc20:
+        if (direction == TradeDirection.input) {
+          const fromTokenResult = await this.hasGotEnoughBalanceErc20(
+            amountToTrade.toFixed(),
+            allowanceAndBalancesForTokens.fromToken.balanceOf
+          );
+
+          const toTokenResult = this.hasGotEnoughBalanceErc20(
+            expectedConvertQuote.toFixed(expectedConvertQuoteDecimals),
+            allowanceAndBalancesForTokens.toToken.balanceOf
+          );
+
+          enoughFromBalance = fromTokenResult.hasEnough;
+          fromBalance = fromTokenResult.balance;
+
+          enoughToBalance = toTokenResult.hasEnough;
+          toBalance = toTokenResult.balance;
+
+          enoughFromV2Allowance = this.hasGotEnoughAllowanceDirect(
+            amountToTrade.toFixed(amountToTradeDecimals),
+            allowanceAndBalancesForTokens.fromToken.allowanceV2,
+            true,
+          );
+
+          enoughToV2Allowance = this.hasGotEnoughAllowanceDirect(
+            expectedConvertQuote.toFixed(expectedConvertQuoteDecimals),
+            allowanceAndBalancesForTokens.toToken.allowanceV2,
+            false,
+          );
+
+        } else {
+          const fromTokenResult = await this.hasGotEnoughBalanceErc20(
+            expectedConvertQuote.toFixed(expectedConvertQuoteDecimals),
+            allowanceAndBalancesForTokens.fromToken.balanceOf
+          );
+
+          const toTokenResult = this.hasGotEnoughBalanceErc20(
+            amountToTrade.toFixed(),
+            allowanceAndBalancesForTokens.toToken.balanceOf
+          );
+
+          enoughFromBalance = fromTokenResult.hasEnough;
+          fromBalance = fromTokenResult.balance;
+
+          enoughToBalance = toTokenResult.hasEnough;
+          toBalance = toTokenResult.balance;
+
+          enoughFromV2Allowance = this.hasGotEnoughAllowanceDirect(
+            expectedConvertQuote.toFixed(expectedConvertQuoteDecimals),
+            allowanceAndBalancesForTokens.fromToken.allowanceV2,
+            true,
+          );
+
+          enoughToV2Allowance = this.hasGotEnoughAllowanceDirect(
+            amountToTrade.toFixed(amountToTradeDecimals),
+            allowanceAndBalancesForTokens.toToken.allowanceV2,
+            false,
+          );
+        }
+        break;
+      case TradePath.erc20ToEth:
+        if (direction == TradeDirection.input) {
+          const fromTokenResult = await this.hasGotEnoughBalanceErc20(
+            amountToTrade.toFixed(amountToTradeDecimals),
+            allowanceAndBalancesForTokens.fromToken.balanceOf
+          );
+
+          const toTokenResult = await this.hasGotEnoughBalanceEth(expectedConvertQuote.toFixed());
+
+          enoughFromBalance = fromTokenResult.hasEnough;
+          fromBalance = fromTokenResult.balance;
+
+          enoughToBalance = toTokenResult.hasEnough;
+          toBalance = toTokenResult.balance;
+
+          enoughFromV2Allowance = this.hasGotEnoughAllowanceDirect(
+            amountToTrade.toFixed(amountToTradeDecimals),
+            allowanceAndBalancesForTokens.fromToken.allowanceV2,
+            true,
+          );
+
+          enoughToV2Allowance = true;
+
+
+        } else {
+          const fromTokenResult = await this.hasGotEnoughBalanceErc20(
+            expectedConvertQuote.toFixed(expectedConvertQuoteDecimals),
+            allowanceAndBalancesForTokens.fromToken.balanceOf
+          );
+
+          const toTokenResult = await this.hasGotEnoughBalanceEth(amountToTrade.toFixed());
+
+          enoughFromBalance = fromTokenResult.hasEnough;
+          fromBalance = fromTokenResult.balance;
+
+          enoughToBalance = toTokenResult.hasEnough;
+          toBalance = toTokenResult.balance;
+
+          enoughFromV2Allowance = this.hasGotEnoughAllowanceDirect(
+            expectedConvertQuote.toFixed(expectedConvertQuoteDecimals),
+            allowanceAndBalancesForTokens.fromToken.allowanceV2,
+            true,
+          );
+
+          enoughToV2Allowance = true;
+
+        }
+        break;
+    }
+
+    return {
+      enoughFromBalance,
+      fromBalance,
+      enoughToBalance,
+      toBalance,
+      enoughFromV2Allowance,
+      enoughToV2Allowance
+    };
+  }
+
 
   /**
    * Has got enough balance to do the trade (eth check only)

@@ -7,6 +7,12 @@ export interface LiquidityQuote {
   expectedConvertQuote: string;
   expectedConvertQuoteMinWithSlippage: string;
   baseConvertRequestMinWithSlippage: string;
+  fromHasEnoughAllowance: boolean;
+  toHasEnoughAllowance: boolean;
+  fromHasEnoughBalance: boolean;
+  toHasEnoughBalance: boolean;
+  fromBalance: string;
+  toBalance: string;
   transaction: Transaction;
   tradeExpires: number;
   uniswapVersion: UniswapVersion;

@@ -312,39 +312,41 @@ export class UniswapLiquidityFactory {
       direction
     );
 
-    console.log(liquidityQuotes);
-
     const tradeContext: LiquidityTradeContext = {
       uniswapVersion: UniswapVersion.v2, //hardcode first
       quoteDirection: direction,
       isFirstSupplier: true,
-      baseConvertRequest: baseConvertRequest.toFixed(),
-      expectedConvertQuote: "", //Take from liquidityQuotes
-      minTokenAAmountConvertQuote: "", //Take from liquidityQuotes
-      minTokenBAmountConvertQuote: "", //Take from liquidityQuotes
-      tradeExpires: 123, //Take from liquidityQuotes
-      tokenAHasEnoughAllowance: true,
-      tokenBHasEnoughAllowance: true,
+      baseConvertRequest: liquidityQuotes.baseConvertRequest,
+      expectedConvertQuote: liquidityQuotes.expectedConvertQuote,
+      minTokenAAmountConvertQuote: direction === TradeDirection.input
+        ? liquidityQuotes.baseConvertRequestMinWithSlippage : liquidityQuotes.expectedConvertQuoteMinWithSlippage,
+      minTokenBAmountConvertQuote: direction === TradeDirection.input
+        ? liquidityQuotes.expectedConvertQuoteMinWithSlippage : liquidityQuotes.baseConvertRequestMinWithSlippage,
+      tradeExpires: liquidityQuotes.tradeExpires, //Take from liquidityQuotes
+      tokenAHasEnoughAllowance: liquidityQuotes.fromHasEnoughAllowance,
+      tokenBHasEnoughAllowance: liquidityQuotes.toHasEnoughAllowance,
       tokenAApprovalTransaction: undefined,
       tokenABpprovalTransaction: undefined,
       tokenA: this.fromToken,
       tokenABalance: {
-        hasEnough: true,
-        balance: "",
+        hasEnough: liquidityQuotes.fromHasEnoughBalance,
+        balance: liquidityQuotes.fromBalance,
       },
-      tokenB: this.fromToken,
+      tokenB: this.toToken,
       tokenBBalance: {
-        hasEnough: true,
-        balance: "",
+        hasEnough: liquidityQuotes.toHasEnoughBalance,
+        balance: liquidityQuotes.toBalance,
       },
       lpTokensToReceive: "",
       poolShare: "",
-      transaction: { data: "", from: "", to: "", value: "" },
+      transaction: liquidityQuotes.transaction,
       gasPriceEstimatedBy: "",
-      lpBalance: "",
+      lpBalance: liquidityQuotes.lpBalance,
       quoteChanged$: this._quoteChanged$,
       destroy: () => this.destroy(),
     };
+
+    console.log(tradeContext);
 
     return tradeContext;
   }
