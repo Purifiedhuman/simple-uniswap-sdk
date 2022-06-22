@@ -319,7 +319,7 @@ export class UniswapRouterFactory {
     amountToTrade: BigNumber,
     direction: TradeDirection
   ): Promise<RouteQuote[]> {
-    const tradeAmountInHex = this.formatAmountToTrade(amountToTrade, direction);
+    const weiTradeAmountInHex = this.formatAmountToTrade(amountToTrade, direction);
 
     const routes = await this.getAllPossibleRoutes();
 
@@ -346,7 +346,7 @@ export class UniswapRouterFactory {
             direction === TradeDirection.input
               ? 'getAmountsOut'
               : 'getAmountsIn',
-          methodParameters: [tradeAmountInHex, routeCombo],
+          methodParameters: [weiTradeAmountInHex, routeCombo],
         });
       }
     }
@@ -379,7 +379,7 @@ export class UniswapRouterFactory {
             routeCombo[0],
             routeCombo[1],
             percentToFeeAmount(routes.v3[i].liquidityProviderFee),
-            tradeAmountInHex,
+            weiTradeAmountInHex,
             0,
           ],
         });
@@ -467,19 +467,21 @@ export class UniswapRouterFactory {
 
   /**
  * Get liquidity quote for the amountToTrade
- * @param amountToTrade The amount to trade
+ * @param etherAmountToTrade The amount to trade
  * @param direction The direction you want to get the quote from
  */
   public async getLiquidityQuote(
-    amountToTrade: BigNumber,
+    etherAmountToTrade: BigNumber,
     direction: TradeDirection,
     pairedAmount?: BigNumber,
   ): Promise<LiquidityQuote> {
-    const tradeAmountInHex = this.formatAmountToTrade(amountToTrade, direction);
+    const weiTradeAmountInHex = this.formatAmountToTrade(etherAmountToTrade, direction);
 
     const routes = await this.getAllPossibleRoutes(true);
 
     const contractCallContext: ContractCallContext<RouteContext[]>[] = [];
+
+    let lpTokenDecimals = 18; //default
 
     if (this._settings.uniswapVersions.includes(UniswapVersion.v2)) {
 
@@ -522,6 +524,12 @@ export class UniswapRouterFactory {
           methodName: 'balanceOf',
           methodParameters: [this._ethereumAddress],
         });
+
+        contractCallContext[0].calls.push({
+          reference: `decimals-${i}`,
+          methodName: 'decimals',
+          methodParameters: [],
+        });
       }
     }
 
@@ -530,11 +538,11 @@ export class UniswapRouterFactory {
 
     let token0Address: null | string = null;
     let token1Address: null | string = null;
-    let blockTimestampLast: null | string = null;
-    let token0ReserveInHex: null | string = null;
-    let token1ReserveInHex: null | string = null;
-    let balanceOfInHex: null | string = null;
-    let expectedConvertQuoteInHex: null | string = null;
+    // let blockTimestampLast: null | string = null;
+    let weiToken0ReserveInHex: null | string = null;
+    let weiToken1ReserveInHex: null | string = null;
+    let weiBalanceOfInHex: null | string = null;
+    let weiExpectedConvertQuoteInHex: null | string = null;
 
     for (const key in contractCallResults.results) {
       const contractCallReturnContext = contractCallResults.results[key];
@@ -554,12 +562,15 @@ export class UniswapRouterFactory {
               token1Address = callReturnContext.returnValues[0];
               break;
             case 'getReserves-0':
-              token0ReserveInHex = callReturnContext.returnValues[0].hex;
-              token1ReserveInHex = callReturnContext.returnValues[1].hex;
-              blockTimestampLast = callReturnContext.returnValues[2];
+              weiToken0ReserveInHex = callReturnContext.returnValues[0].hex;
+              weiToken1ReserveInHex = callReturnContext.returnValues[1].hex;
+              // blockTimestampLast = callReturnContext.returnValues[2];
               break;
             case 'balanceOf-0':
-              balanceOfInHex = callReturnContext.returnValues[0].hex;
+              weiBalanceOfInHex = callReturnContext.returnValues[0].hex;
+              break;
+            case 'decimals-0':
+              lpTokenDecimals = callReturnContext.returnValues[0];
               break;
           }
 
@@ -567,26 +578,26 @@ export class UniswapRouterFactory {
       }
     }
 
-    if (token0ReserveInHex && token1ReserveInHex) {
+    if (weiToken0ReserveInHex && weiToken1ReserveInHex) {
       if (direction === TradeDirection.input) {
         //TradeDirection is tokenA(tradeAmount) -> tokenB(expectedConvertQuoteHex), tokenA(_fromToken) = token0
         if (token0Address === this._fromToken.contractAddress) {
-          expectedConvertQuoteInHex = await this._uniswapRouterContractFactoryV2.quote(
-            tradeAmountInHex, token0ReserveInHex, token1ReserveInHex);
+          weiExpectedConvertQuoteInHex = await this._uniswapRouterContractFactoryV2.quote(
+            weiTradeAmountInHex, weiToken0ReserveInHex, weiToken1ReserveInHex);
           //TradeDirection is tokenA(tradeAmount) -> tokenB(expectedConvertQuoteHex), tokenB(_toToken) = token0
         } else if (token0Address === this._toToken.contractAddress) {
-          expectedConvertQuoteInHex = await this._uniswapRouterContractFactoryV2.quote(
-            tradeAmountInHex, token1ReserveInHex, token0ReserveInHex);
+          weiExpectedConvertQuoteInHex = await this._uniswapRouterContractFactoryV2.quote(
+            weiTradeAmountInHex, weiToken1ReserveInHex, weiToken0ReserveInHex);
         }
       } else if (direction === TradeDirection.output) {
         //TradeDirection is tokenB(tradeAmount) -> tokenA(expectedConvertQuoteHex), tokenB = token1
         if (token1Address === this._toToken.contractAddress) {
-          expectedConvertQuoteInHex = await this._uniswapRouterContractFactoryV2.quote(
-            tradeAmountInHex, token1ReserveInHex, token0ReserveInHex);
+          weiExpectedConvertQuoteInHex = await this._uniswapRouterContractFactoryV2.quote(
+            weiTradeAmountInHex, weiToken1ReserveInHex, weiToken0ReserveInHex);
           //TradeDirection is tokenB(tradeAmount) -> tokenA(expectedConvertQuoteHex), tokenB = token0
         } else if (token1Address === this._fromToken.contractAddress) {
-          expectedConvertQuoteInHex = await this._uniswapRouterContractFactoryV2.quote(
-            tradeAmountInHex, token0ReserveInHex, token1ReserveInHex);
+          weiExpectedConvertQuoteInHex = await this._uniswapRouterContractFactoryV2.quote(
+            weiTradeAmountInHex, weiToken0ReserveInHex, weiToken1ReserveInHex);
         }
       }
     }
@@ -595,66 +606,102 @@ export class UniswapRouterFactory {
       ? this._fromToken.decimals
       : this._toToken.decimals;
 
-    const baseConvertRequestBigNumber = new BigNumber(tradeAmountInHex);
-    const formattedBaseConvertRequest = baseConvertRequestBigNumber.toFixed(baseConvertRequestDecimals);
-
-
     const expectedConvertQuoteDecimals = direction === TradeDirection.input
       ? this._toToken.decimals
       : this._fromToken.decimals;
 
-    const expectedConvertQuoteBigNumber = new BigNumber(expectedConvertQuoteInHex ?? 0);
-    const formattedExpectedConvertQuote = expectedConvertQuoteBigNumber.toFixed(expectedConvertQuoteDecimals);
+    const weiBaseConvertRequestInBigNumber = new BigNumber(weiTradeAmountInHex);
+    const weiExpectedConvertQuoteInBigNumber = new BigNumber(weiExpectedConvertQuoteInHex ?? 0);
 
-    const baseConvertRequestMinWithSlippageBigNumber = new BigNumber(tradeAmountInHex)
+    const etherExpectedConvertQuoteInBigNumber = this.formatConvertQuoteToEtherBigNumber(weiExpectedConvertQuoteInBigNumber, direction);
+
+    const etherBaseConvertRequestMinWithSlippageInBigNumber = new BigNumber(etherAmountToTrade)
       .minus(
-        new BigNumber(tradeAmountInHex)
+        new BigNumber(etherAmountToTrade)
           .times(this._settings.slippage)
           .toFixed(baseConvertRequestDecimals)
       )
+    const weiBaseConvertRequestMinWithSlippageInHex = this.formatAmountToTrade(etherBaseConvertRequestMinWithSlippageInBigNumber, direction);
 
-    const formattedBaseConvertRequestMinWithSlippage = baseConvertRequestMinWithSlippageBigNumber.toFixed(baseConvertRequestDecimals);
-
-    const expectedConvertQuoteMinWithSlippageBigNumber = new BigNumber(expectedConvertQuoteInHex ?? 0)
+    const etherExpectedConvertQuoteMinWithSlippageInBigNumber = etherExpectedConvertQuoteInBigNumber
       .minus(
-        new BigNumber(expectedConvertQuoteInHex ?? 0)
+        new BigNumber(etherExpectedConvertQuoteInBigNumber)
           .times(this._settings.slippage)
           .toFixed(expectedConvertQuoteDecimals)
       )
 
-    const formattedExpectedConvertQuoteMinWithSlippage = expectedConvertQuoteMinWithSlippageBigNumber.toFixed(expectedConvertQuoteDecimals);
+    const weiExpectedConvertQuoteMinWithSlippageInHex = this.formatConvertQuoteToTrade(etherExpectedConvertQuoteMinWithSlippageInBigNumber, direction);
 
     const tradeExpires = this.generateTradeDeadlineUnixTime();
 
-    const data = this.generateAddLiquidityDataErc20AndErc20(
-      UniswapVersion.v2,
-      this._fromToken.contractAddress,
-      this._toToken.contractAddress,
-      direction === TradeDirection.input ? baseConvertRequestBigNumber : expectedConvertQuoteBigNumber,
-      direction === TradeDirection.input ? expectedConvertQuoteBigNumber : baseConvertRequestBigNumber,
-      direction === TradeDirection.input ? baseConvertRequestMinWithSlippageBigNumber : expectedConvertQuoteMinWithSlippageBigNumber,
-      direction === TradeDirection.input ? expectedConvertQuoteMinWithSlippageBigNumber : baseConvertRequestMinWithSlippageBigNumber,
-      tradeExpires.toString()
-    )
+    let data: null | string = null;
+    let transaction: null | Transaction = null;
 
-    const transaction = this.buildUpTransactionErc20(UniswapVersion.v2, data);
+    switch (this.tradePath()) {
+      case TradePath.ethToErc20:
+        data = this.generateAddLiquidityDataEthAndErc20(
+          UniswapVersion.v2,
+          this._toToken.contractAddress,
+          direction === TradeDirection.input ? weiExpectedConvertQuoteInBigNumber : weiBaseConvertRequestInBigNumber,
+          direction === TradeDirection.input ? new BigNumber(weiExpectedConvertQuoteMinWithSlippageInHex) : new BigNumber(weiBaseConvertRequestMinWithSlippageInHex),
+          direction === TradeDirection.input ? new BigNumber(weiBaseConvertRequestMinWithSlippageInHex) : new BigNumber(weiExpectedConvertQuoteMinWithSlippageInHex),
+          tradeExpires.toString()
+        )
 
-    const formattedLpBalance = new BigNumber(balanceOfInHex ?? 0).toFixed();
+        transaction = this.buildUpTransactionErc20(UniswapVersion.v2, data);
+        break;
+      case TradePath.erc20ToEth:
+        data = this.generateAddLiquidityDataEthAndErc20(
+          UniswapVersion.v2,
+          this._fromToken.contractAddress,
+          direction === TradeDirection.input ? weiBaseConvertRequestInBigNumber : weiExpectedConvertQuoteInBigNumber,
+          direction === TradeDirection.input ? new BigNumber(weiBaseConvertRequestMinWithSlippageInHex) : new BigNumber(weiExpectedConvertQuoteMinWithSlippageInHex),
+          direction === TradeDirection.input ? new BigNumber(weiExpectedConvertQuoteMinWithSlippageInHex) : new BigNumber(weiBaseConvertRequestMinWithSlippageInHex),
+          tradeExpires.toString()
+        )
+
+        transaction = this.buildUpTransactionErc20(UniswapVersion.v2, data);
+        break;
+      case TradePath.erc20ToErc20:
+        data = this.generateAddLiquidityDataErc20AndErc20(
+          UniswapVersion.v2,
+          this._fromToken.contractAddress,
+          this._toToken.contractAddress,
+          direction === TradeDirection.input ? weiBaseConvertRequestInBigNumber : weiExpectedConvertQuoteInBigNumber,
+          direction === TradeDirection.input ? weiExpectedConvertQuoteInBigNumber : weiBaseConvertRequestInBigNumber,
+          direction === TradeDirection.input ? new BigNumber(weiBaseConvertRequestMinWithSlippageInHex) : new BigNumber(weiExpectedConvertQuoteMinWithSlippageInHex),
+          direction === TradeDirection.input ? new BigNumber(weiExpectedConvertQuoteMinWithSlippageInHex) : new BigNumber(weiBaseConvertRequestMinWithSlippageInHex),
+          tradeExpires.toString()
+        )
+
+        transaction = this.buildUpTransactionErc20(UniswapVersion.v2, data);
+
+        break;
+      default:
+        throw new UniswapError(
+          `${this.tradePath} not found`,
+          ErrorCodes.tradePathIsNotSupported
+        );
+    }
+
+    const formattedLpBalance = new BigNumber(weiBalanceOfInHex ?? 0).shiftedBy(lpTokenDecimals * -1).toFixed(lpTokenDecimals);
+    const formattedBaseConvertRequest = new BigNumber(etherAmountToTrade).toFixed(baseConvertRequestDecimals);
+    const formattedExpectedConvertQuote = new BigNumber(etherExpectedConvertQuoteInBigNumber).toFixed(expectedConvertQuoteDecimals);
+    const formattedBaseConvertRequestMinWithSlippage = new BigNumber(etherBaseConvertRequestMinWithSlippageInBigNumber).toFixed(baseConvertRequestDecimals);
+    const formattedExpectedConvertQuoteMinWithSlippage = new BigNumber(etherExpectedConvertQuoteMinWithSlippageInBigNumber).toFixed(expectedConvertQuoteDecimals);
 
     return {
       baseConvertRequest: formattedBaseConvertRequest,
       expectedConvertQuote: formattedExpectedConvertQuote,
-      expectedConvertQuoteMinWithSlippage: formattedExpectedConvertQuoteMinWithSlippage,
       baseConvertRequestMinWithSlippage: formattedBaseConvertRequestMinWithSlippage,
+      expectedConvertQuoteMinWithSlippage: formattedExpectedConvertQuoteMinWithSlippage,
       transaction,
-      tradeExpires: 10,
+      tradeExpires: tradeExpires,
       uniswapVersion: UniswapVersion.v2,
       quoteDirection: direction,
       lpBalance: formattedLpBalance,
       gasPriceEstimatedBy: undefined
     }
-
-
   }
 
   /**
@@ -679,8 +726,11 @@ export class UniswapRouterFactory {
 
   /**
  * Generate addLiquidityEth data eth + erc20
- * @param ethAmountIn The eth amount in
- * @param tokenAmountInHex The token amount
+ * @param uniswapVersion The uniswap version
+ * @param tokenAddress The token address for erc20
+ * @param tokenAmount The token amount in wei
+ * @param minTokenAmount The minumum token amount in wei
+ * @param minEthAmount The minimum ethers amount in wei
  * @param deadline The deadline it expires unix time
  */
   private generateAddLiquidityDataEthAndErc20(
@@ -712,8 +762,13 @@ export class UniswapRouterFactory {
 
   /**
 * Generate addLiquidity data erc20 + erc20
-* @param ethAmountIn The eth amount in
-* @param tokenAmount The token amount
+* @param uniswapVersion The uniswap version
+* @param tokenAAddress The token A address for erc20
+* @param tokenBAddress The token B address for erc20
+* @param tokenAmount The token A amount in wei
+* @param tokenBAmount The token B amount in wei
+* @param minTokenAAmount The minumum token A amount in wei
+* @param minTokenBAmount The minimum token B amount in wei
 * @param deadline The deadline it expires unix time
 */
   private generateAddLiquidityDataErc20AndErc20(
@@ -2253,6 +2308,82 @@ export class UniswapRouterFactory {
           return hexlify(amountToTrade.shiftedBy(this._fromToken.decimals));
         } else {
           return hexlify(amountToTrade.shiftedBy(this._toToken.decimals));
+        }
+      default:
+        throw new UniswapError(
+          `Internal trade path ${this.tradePath()} is not supported`,
+          ErrorCodes.tradePathIsNotSupported
+        );
+    }
+  }
+
+  /**
+ * Format amount to trade into callable formats
+ * @param convertQuoteToTrade The amount to trade
+ * @param direction The direction you want to get the quote from
+ */
+  private formatConvertQuoteToTrade(
+    convertQuoteToTrade: BigNumber,
+    direction: TradeDirection
+  ): string {
+    switch (this.tradePath()) {
+      case TradePath.ethToErc20:
+        if (direction == TradeDirection.output) {
+          const amountToTradeWei = parseEther(convertQuoteToTrade);
+          return hexlify(amountToTradeWei);
+        } else {
+          return hexlify(convertQuoteToTrade.shiftedBy(this._toToken.decimals));
+        }
+      case TradePath.erc20ToEth:
+        if (direction == TradeDirection.output) {
+          return hexlify(convertQuoteToTrade.shiftedBy(this._fromToken.decimals));
+        } else {
+          const amountToTradeWei = parseEther(convertQuoteToTrade);
+          return hexlify(amountToTradeWei);
+        }
+      case TradePath.erc20ToErc20:
+        if (direction == TradeDirection.output) {
+          return hexlify(convertQuoteToTrade.shiftedBy(this._fromToken.decimals));
+        } else {
+          return hexlify(convertQuoteToTrade.shiftedBy(this._toToken.decimals));
+        }
+      default:
+        throw new UniswapError(
+          `Internal trade path ${this.tradePath()} is not supported`,
+          ErrorCodes.tradePathIsNotSupported
+        );
+    }
+  }
+
+  /**
+ * Format amount to readable format
+ * @param convertQuote The amount to trade
+ * @param direction The direction you want to get the quote from
+ */
+  private formatConvertQuoteToEtherBigNumber(
+    convertQuote: BigNumber,
+    direction: TradeDirection
+  ): BigNumber {
+    switch (this.tradePath()) {
+      case TradePath.ethToErc20:
+        if (direction == TradeDirection.output) {
+          const convertQuoteWei = formatEther(convertQuote);
+          return convertQuoteWei;
+        } else {
+          return convertQuote.shiftedBy(this._toToken.decimals * -1);
+        }
+      case TradePath.erc20ToEth:
+        if (direction == TradeDirection.output) {
+          return convertQuote.shiftedBy(this._fromToken.decimals * -1);
+        } else {
+          const convertQuoteWei = formatEther(convertQuote);
+          return convertQuoteWei;
+        }
+      case TradePath.erc20ToErc20:
+        if (direction == TradeDirection.output) {
+          return convertQuote.shiftedBy(this._fromToken.decimals * -1);
+        } else {
+          return convertQuote.shiftedBy(this._toToken.decimals * -1);
         }
       default:
         throw new UniswapError(
