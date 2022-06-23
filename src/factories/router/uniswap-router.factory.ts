@@ -473,7 +473,7 @@ export class UniswapRouterFactory {
   public async getLiquidityQuote(
     etherAmountToTradeInBigNumber: BigNumber,
     direction: TradeDirection,
-    pairedAmount?: BigNumber,
+    etherDirectConvertAmount = new BigNumber(0),
   ): Promise<LiquidityQuote> {
     const weiTradeAmountInHex = this.formatAmountToTrade(etherAmountToTradeInBigNumber, direction);
 
@@ -497,38 +497,39 @@ export class UniswapRouterFactory {
           reference: `${UniswapVersion.v2}-pair`,
           contractAddress: pairAddress,
           abi: UniswapContractContextV2.pairAbi,
-          calls: [],
+          calls: [
+            {
+              reference: `token0-${i}`,
+              methodName: 'token0',
+              methodParameters: [],
+            },
+            {
+              reference: `token1-${i}`,
+              methodName: 'token1',
+              methodParameters: [],
+            },
+            {
+              reference: `getReserves-${i}`,
+              methodName: 'getReserves',
+              methodParameters: [],
+            },
+            {
+              reference: `totalSupply-${i}`,
+              methodName: 'totalSupply',
+              methodParameters: [],
+            },
+            {
+              reference: `balanceOf-${i}`,
+              methodName: 'balanceOf',
+              methodParameters: [this._ethereumAddress],
+            },
+            {
+              reference: `decimals-${i}`,
+              methodName: 'decimals',
+              methodParameters: [],
+            }
+          ],
           context: routes.v2,
-        });
-
-        contractCallContext[0].calls.push({
-          reference: `token0-${i}`,
-          methodName: 'token0',
-          methodParameters: [],
-        });
-
-        contractCallContext[0].calls.push({
-          reference: `token1-${i}`,
-          methodName: 'token1',
-          methodParameters: [],
-        });
-
-        contractCallContext[0].calls.push({
-          reference: `getReserves-${i}`,
-          methodName: 'getReserves',
-          methodParameters: [],
-        });
-
-        contractCallContext[0].calls.push({
-          reference: `balanceOf-${i}`,
-          methodName: 'balanceOf',
-          methodParameters: [this._ethereumAddress],
-        });
-
-        contractCallContext[0].calls.push({
-          reference: `decimals-${i}`,
-          methodName: 'decimals',
-          methodParameters: [],
         });
       }
     }
@@ -536,11 +537,13 @@ export class UniswapRouterFactory {
 
     const contractCallResults = await this._multicall.call(contractCallContext);
 
+    let isFirstSupplier = false;
     let token0Address: null | string = null;
     let token1Address: null | string = null;
     // let blockTimestampLast: null | string = null;
     let weiToken0ReserveInHex: null | string = null;
     let weiToken1ReserveInHex: null | string = null;
+    let weiTotalSupplyInHex: null | string = null;
     let weiBalanceOfInHex: null | string = null;
     let weiExpectedConvertQuoteInHex: null | string = null;
 
@@ -555,21 +558,24 @@ export class UniswapRouterFactory {
           }
 
           switch (callReturnContext.reference) {
-            case 'token0-0':
+            case `token0-0`:
               token0Address = callReturnContext.returnValues[0];
               break;
-            case 'token1-0':
+            case `token1-0`:
               token1Address = callReturnContext.returnValues[0];
               break;
-            case 'getReserves-0':
+            case `getReserves-0`:
               weiToken0ReserveInHex = callReturnContext.returnValues[0].hex;
               weiToken1ReserveInHex = callReturnContext.returnValues[1].hex;
               // blockTimestampLast = callReturnContext.returnValues[2];
               break;
-            case 'balanceOf-0':
+            case `totalSupply-0`:
+              weiTotalSupplyInHex = callReturnContext.returnValues[0].hex;
+              break;
+            case `balanceOf-0`:
               weiBalanceOfInHex = callReturnContext.returnValues[0].hex;
               break;
-            case 'decimals-0':
+            case `decimals-0`:
               lpTokenDecimals = callReturnContext.returnValues[0];
               break;
           }
@@ -578,7 +584,10 @@ export class UniswapRouterFactory {
       }
     }
 
+    let etherTotalSupply = new BigNumber(0);
     if (weiToken0ReserveInHex && weiToken1ReserveInHex) {
+      isFirstSupplier = false;
+      etherTotalSupply = formatEther(new BigNumber(weiTotalSupplyInHex ?? 0));
       if (direction === TradeDirection.input) {
         //TradeDirection is tokenA(tradeAmount) -> tokenB(expectedConvertQuoteHex), tokenA(_fromToken) = token0
         if (token0Address === removeEthFromContractAddress(this._fromToken.contractAddress)) {
@@ -600,6 +609,8 @@ export class UniswapRouterFactory {
             weiTradeAmountInHex, weiToken0ReserveInHex, weiToken1ReserveInHex);
         }
       }
+    } else {
+      isFirstSupplier = true;
     }
 
     const baseConvertRequestDecimals = direction === TradeDirection.input
@@ -648,7 +659,9 @@ export class UniswapRouterFactory {
           tradeExpires.toString()
         )
 
-        transaction = this.buildUpTransactionErc20(UniswapVersion.v2, data);
+        transaction = this.buildUpTransactionEth(UniswapVersion.v2, direction === TradeDirection.input
+          ? etherAmountToTradeInBigNumber
+          : etherExpectedConvertQuoteInBigNumber, data);
         break;
       case TradePath.erc20ToEth:
         data = this.generateAddLiquidityDataEthAndErc20(
@@ -660,7 +673,9 @@ export class UniswapRouterFactory {
           tradeExpires.toString()
         )
 
-        transaction = this.buildUpTransactionErc20(UniswapVersion.v2, data);
+        transaction = this.buildUpTransactionEth(UniswapVersion.v2, direction === TradeDirection.input
+          ? etherAmountToTradeInBigNumber
+          : etherExpectedConvertQuoteInBigNumber, data);
         break;
       case TradePath.erc20ToErc20:
         data = this.generateAddLiquidityDataErc20AndErc20(
@@ -698,7 +713,49 @@ export class UniswapRouterFactory {
       direction
     );
 
+    /* Rearrange token according to pair contract */
+    let etherTokenAmount0 = new BigNumber(0);
+    let etherTokenAmount1 = new BigNumber(0);
+    let etherReserve0 = new BigNumber(0);
+    let etherReserve1 = new BigNumber(0);
+
+    if (direction === TradeDirection.input) {
+      if (token0Address === removeEthFromContractAddress(this._fromToken.contractAddress)) {
+        etherTokenAmount0 = etherAmountToTradeInBigNumber;
+        etherTokenAmount1 = isFirstSupplier ? etherDirectConvertAmount : etherExpectedConvertQuoteInBigNumber;
+        etherReserve0 = new BigNumber(weiToken0ReserveInHex ?? 0).shiftedBy(baseConvertRequestDecimals * -1);
+        etherReserve1 = new BigNumber(weiToken1ReserveInHex ?? 0).shiftedBy(expectedConvertQuoteDecimals * -1);
+      } else if (token0Address === removeEthFromContractAddress(this._toToken.contractAddress)) {
+        etherTokenAmount0 = isFirstSupplier ? etherDirectConvertAmount : etherExpectedConvertQuoteInBigNumber;
+        etherTokenAmount1 = etherAmountToTradeInBigNumber;
+        etherReserve0 = new BigNumber(weiToken0ReserveInHex ?? 0).shiftedBy(expectedConvertQuoteDecimals * -1);
+        etherReserve1 = new BigNumber(weiToken1ReserveInHex ?? 0).shiftedBy(baseConvertRequestDecimals * -1);
+      }
+    } else if (direction === TradeDirection.output) {
+      if (token1Address === removeEthFromContractAddress(this._toToken.contractAddress)) {
+        etherTokenAmount0 = isFirstSupplier ? etherDirectConvertAmount : etherExpectedConvertQuoteInBigNumber;;
+        etherTokenAmount1 = etherAmountToTradeInBigNumber;
+        etherReserve0 = new BigNumber(weiToken0ReserveInHex ?? 0).shiftedBy(expectedConvertQuoteDecimals * -1);
+        etherReserve1 = new BigNumber(weiToken1ReserveInHex ?? 0).shiftedBy(baseConvertRequestDecimals * -1);
+      } else if (token1Address === removeEthFromContractAddress(this._fromToken.contractAddress)) {
+        etherTokenAmount0 = etherAmountToTradeInBigNumber;
+        etherTokenAmount1 = isFirstSupplier ? etherDirectConvertAmount : etherExpectedConvertQuoteInBigNumber;
+        etherReserve0 = new BigNumber(weiToken0ReserveInHex ?? 0).shiftedBy(baseConvertRequestDecimals * -1);
+        etherReserve1 = new BigNumber(weiToken1ReserveInHex ?? 0).shiftedBy(expectedConvertQuoteDecimals * -1);
+      }
+    }
+
+    const lpTokens = await this.calculatesLPTokensToReceive(
+      etherTokenAmount0,
+      etherTokenAmount1,
+      etherReserve0,
+      etherReserve1,
+      etherTotalSupply,
+      isFirstSupplier
+    );
+
     return {
+      isFirstSupplier,
       baseConvertRequest: formattedBaseConvertRequest,
       expectedConvertQuote: formattedExpectedConvertQuote,
       baseConvertRequestMinWithSlippage: formattedBaseConvertRequestMinWithSlippage,
@@ -714,6 +771,7 @@ export class UniswapRouterFactory {
       uniswapVersion: UniswapVersion.v2,
       quoteDirection: direction,
       lpBalance: formattedLpBalance,
+      lpTokensToReceive: lpTokens.estimatedLPTokens,
       gasPriceEstimatedBy: undefined
     }
   }
@@ -739,14 +797,14 @@ export class UniswapRouterFactory {
   }
 
   /**
- * Generate addLiquidityEth data eth + erc20
- * @param uniswapVersion The uniswap version
- * @param tokenAddress The token address for erc20
- * @param tokenAmount The token amount in wei
- * @param minTokenAmount The minumum token amount in wei
- * @param minEthAmount The minimum ethers amount in wei
- * @param deadline The deadline it expires unix time
- */
+   * Generate addLiquidityEth data eth + erc20
+   * @param uniswapVersion The uniswap version
+   * @param tokenAddress The token address for erc20
+   * @param tokenAmount The token amount in wei
+   * @param minTokenAmount The minumum token amount in wei
+   * @param minEthAmount The minimum ethers amount in wei
+   * @param deadline The deadline it expires unix time
+   */
   private generateAddLiquidityDataEthAndErc20(
     uniswapVersion: UniswapVersion,
     tokenAddress: string,
@@ -775,16 +833,16 @@ export class UniswapRouterFactory {
   }
 
   /**
-* Generate addLiquidity data erc20 + erc20
-* @param uniswapVersion The uniswap version
-* @param tokenAAddress The token A address for erc20
-* @param tokenBAddress The token B address for erc20
-* @param tokenAmount The token A amount in wei
-* @param tokenBAmount The token B amount in wei
-* @param minTokenAAmount The minumum token A amount in wei
-* @param minTokenBAmount The minimum token B amount in wei
-* @param deadline The deadline it expires unix time
-*/
+  * Generate addLiquidity data erc20 + erc20
+  * @param uniswapVersion The uniswap version
+  * @param tokenAAddress The token A address for erc20
+  * @param tokenBAddress The token B address for erc20
+  * @param tokenAmount The token A amount in wei
+  * @param tokenBAmount The token B amount in wei
+  * @param minTokenAAmount The minumum token A amount in wei
+  * @param minTokenBAmount The minimum token B amount in wei
+  * @param deadline The deadline it expires unix time
+  */
   private generateAddLiquidityDataErc20AndErc20(
     uniswapVersion: UniswapVersion,
     tokenAAddress: string,
@@ -1622,6 +1680,39 @@ export class UniswapRouterFactory {
     return {
       hasEnough: true,
       balance: bigNumberBalance.toFixed(),
+    };
+  }
+
+  /**
+   * Calculates LP Tokens to receive
+   * @param amount0 The ether amount0 to trade in PairContract
+   * @param amount1 The ether amount1 to trade in PairContract
+   * @param reserve0 The ether reserve0 in PairContract
+   * @param reserve1 The ether reserve0 in PairContract
+   * @param totalSupply The totalSupply in PairContract
+   */
+  private async calculatesLPTokensToReceive(
+    etherAmount0: BigNumber,
+    etherAmount1: BigNumber,
+    etherReserve0: BigNumber,
+    etherReserve1: BigNumber,
+    etherTotalSupply: BigNumber,
+    isFirstSupplier: boolean,
+  ): Promise<{
+    estimatedLPTokens: string;
+  }> {
+    let liquidity = new BigNumber(0);
+    if (isFirstSupplier) {
+      liquidity = etherAmount0.multipliedBy(etherAmount1).minus(new BigNumber('1000e-18')).sqrt();
+    } else {
+      liquidity = BigNumber.minimum(
+        etherAmount0.multipliedBy(etherTotalSupply).div(etherReserve0),
+        etherAmount1.multipliedBy(etherTotalSupply).div(etherReserve1),
+      );
+    }
+
+    return {
+      estimatedLPTokens: liquidity.toFixed()
     };
   }
 

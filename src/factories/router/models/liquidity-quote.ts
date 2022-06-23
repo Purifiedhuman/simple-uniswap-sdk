@@ -3,6 +3,7 @@ import { TradeDirection } from '../../pair/models/trade-direction';
 import { Transaction } from '../../pair/models/transaction';
 
 export interface LiquidityQuote {
+  isFirstSupplier: boolean,
   baseConvertRequest: string;
   expectedConvertQuote: string;
   expectedConvertQuoteMinWithSlippage: string;
@@ -18,5 +19,6 @@ export interface LiquidityQuote {
   uniswapVersion: UniswapVersion;
   quoteDirection: TradeDirection;
   lpBalance: string;
+  lpTokensToReceive: string;
   gasPriceEstimatedBy?: string | undefined;
 }

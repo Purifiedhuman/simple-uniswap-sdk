@@ -120,7 +120,8 @@ export class UniswapLiquidityFactory {
    */
   private async executeTradePath(
     amount: BigNumber,
-    direction: TradeDirection
+    direction: TradeDirection,
+    convertAmount?: BigNumber
   ): Promise<LiquidityTradeContext> {
     switch (this.tradePath()) {
       case TradePath.erc20ToEth:
@@ -128,7 +129,7 @@ export class UniswapLiquidityFactory {
       case TradePath.ethToErc20:
       // return await this.findBestPriceAndPathEthToErc20(amount, direction);
       case TradePath.erc20ToErc20:
-        return await this.findBestPriceAndPathErc20ToErc20(amount, direction);
+        return await this.findBestPriceAndPathErc20ToErc20(amount, direction, convertAmount);
       default:
         throw new UniswapError(
           `${this.tradePath()} is not defined`,
@@ -155,11 +156,12 @@ export class UniswapLiquidityFactory {
    */
   public async trade(
     amount: string,
-    direction: TradeDirection = TradeDirection.input
+    direction: TradeDirection = TradeDirection.input,
+    convertAmount?: string
   ): Promise<LiquidityTradeContext> {
     this.destroy();
 
-    const trade = await this.executeTradePath(new BigNumber(amount), direction);
+    const trade = await this.executeTradePath(new BigNumber(amount), direction, convertAmount ? new BigNumber(convertAmount) : undefined);
     this._currentLiquidityTradeContext = this.buildCurrentTradeContext(trade);
 
     this.watchTradePrice();
@@ -247,28 +249,39 @@ export class UniswapLiquidityFactory {
    * @param uniswapVersion The uniswap version
    */
   public async generateApproveMaxAllowanceData(
-    uniswapVersion: UniswapVersion
+    uniswapVersion: UniswapVersion,
+    isFromToken: boolean
   ): Promise<Transaction> {
-    if (this.tradePath() === TradePath.ethToErc20) {
-      throw new UniswapError(
-        'You do not need to generate approve uniswap allowance when doing eth > erc20',
-        ErrorCodes.generateApproveMaxAllowanceDataNotAllowed
+    let data;
+    if (isFromToken) {
+      data = this._fromTokenFactory.generateApproveAllowanceData(
+        uniswapVersion === UniswapVersion.v2
+          ? uniswapContracts.v2.getRouterAddress(
+            this._uniswapPairFactoryContext.settings.cloneUniswapContractDetails
+          )
+          : uniswapContracts.v3.getRouterAddress(
+            this._uniswapPairFactoryContext.settings.cloneUniswapContractDetails
+          ),
+        '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff'
+      );
+    } else {
+      data = this._toTokenFactory.generateApproveAllowanceData(
+        uniswapVersion === UniswapVersion.v2
+          ? uniswapContracts.v2.getRouterAddress(
+            this._uniswapPairFactoryContext.settings.cloneUniswapContractDetails
+          )
+          : uniswapContracts.v3.getRouterAddress(
+            this._uniswapPairFactoryContext.settings.cloneUniswapContractDetails
+          ),
+        '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff'
       );
     }
 
-    const data = this._fromTokenFactory.generateApproveAllowanceData(
-      uniswapVersion === UniswapVersion.v2
-        ? uniswapContracts.v2.getRouterAddress(
-          this._uniswapPairFactoryContext.settings.cloneUniswapContractDetails
-        )
-        : uniswapContracts.v3.getRouterAddress(
-          this._uniswapPairFactoryContext.settings.cloneUniswapContractDetails
-        ),
-      '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff'
-    );
 
     return {
-      to: this.fromToken.contractAddress,
+      to: isFromToken
+        ? this.fromToken.contractAddress
+        : this.toToken.contractAddress,
       from: this._uniswapPairFactoryContext.ethereumAddress,
       data,
       value: Constants.EMPTY_HEX_STRING,
@@ -305,17 +318,19 @@ export class UniswapLiquidityFactory {
    */
   private async findBestPriceAndPathErc20ToErc20(
     baseConvertRequest: BigNumber,
-    direction: TradeDirection
+    direction: TradeDirection,
+    convertAmount?: BigNumber,
   ): Promise<LiquidityTradeContext> {
     const liquidityQuotes = await this._routes.getLiquidityQuote(
       baseConvertRequest,
-      direction
+      direction,
+      convertAmount,
     );
 
     const tradeContext: LiquidityTradeContext = {
       uniswapVersion: UniswapVersion.v2, //hardcode first
       quoteDirection: direction,
-      isFirstSupplier: true,
+      isFirstSupplier: liquidityQuotes.isFirstSupplier,
       baseConvertRequest: liquidityQuotes.baseConvertRequest,
       expectedConvertQuote: liquidityQuotes.expectedConvertQuote,
       minTokenAAmountConvertQuote: direction === TradeDirection.input
@@ -325,8 +340,18 @@ export class UniswapLiquidityFactory {
       tradeExpires: liquidityQuotes.tradeExpires, //Take from liquidityQuotes
       tokenAHasEnoughAllowance: liquidityQuotes.fromHasEnoughAllowance,
       tokenBHasEnoughAllowance: liquidityQuotes.toHasEnoughAllowance,
-      tokenAApprovalTransaction: undefined,
-      tokenABpprovalTransaction: undefined,
+      tokenAApprovalTransaction: !liquidityQuotes.fromHasEnoughAllowance
+        ? await this.generateApproveMaxAllowanceData(
+          liquidityQuotes.uniswapVersion,
+          true
+        )
+        : undefined,
+      tokenABpprovalTransaction: !liquidityQuotes.toHasEnoughAllowance
+        ? await this.generateApproveMaxAllowanceData(
+          liquidityQuotes.uniswapVersion,
+          false
+        )
+        : undefined,
       tokenA: this.fromToken,
       tokenABalance: {
         hasEnough: liquidityQuotes.fromHasEnoughBalance,
@@ -337,7 +362,7 @@ export class UniswapLiquidityFactory {
         hasEnough: liquidityQuotes.toHasEnoughBalance,
         balance: liquidityQuotes.toBalance,
       },
-      lpTokensToReceive: "",
+      lpTokensToReceive: liquidityQuotes.lpTokensToReceive,
       poolShare: "",
       transaction: liquidityQuotes.transaction,
       gasPriceEstimatedBy: "",
@@ -397,7 +422,8 @@ export class UniswapLiquidityFactory {
     if (this._quoteChanged$.observers.length > 0 && this._currentLiquidityTradeContext) {
       const trade = await this.executeTradePath(
         new BigNumber(this._currentLiquidityTradeContext.baseConvertRequest),
-        this._currentLiquidityTradeContext.quoteDirection
+        this._currentLiquidityTradeContext.quoteDirection,
+        new BigNumber(this._currentLiquidityTradeContext.expectedConvertQuote)
       );
 
       if (
