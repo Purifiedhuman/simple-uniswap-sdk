@@ -772,7 +772,7 @@ export class UniswapRouterFactory {
       quoteDirection: direction,
       lpBalance: formattedLpBalance,
       lpTokensToReceive: lpTokens.estimatedLPTokens,
-      gasPriceEstimatedBy: undefined
+      poolShares: lpTokens.estimatedPoolShares
     }
   }
 
@@ -1700,6 +1700,7 @@ export class UniswapRouterFactory {
     isFirstSupplier: boolean,
   ): Promise<{
     estimatedLPTokens: string;
+    estimatedPoolShares: string;
   }> {
     let liquidity = new BigNumber(0);
     if (isFirstSupplier) {
@@ -1711,8 +1712,13 @@ export class UniswapRouterFactory {
       );
     }
 
+    //In percent
+    const percentEstimatedPoolShareInBigNumber = liquidity.div(etherTotalSupply.plus(liquidity))
+      .shiftedBy(2);
+
     return {
-      estimatedLPTokens: liquidity.toFixed()
+      estimatedLPTokens: liquidity.toFixed(),
+      estimatedPoolShares: percentEstimatedPoolShareInBigNumber.isGreaterThan(100) ? '100' : percentEstimatedPoolShareInBigNumber.toFixed(2)
     };
   }
 
@@ -2647,7 +2653,7 @@ export class UniswapRouterFactory {
   }
 
   /**
- * Format amount to trade into callable formats
+ * Format convertQuoteToTrade into callable formats
  * @param convertQuoteToTrade The amount to trade
  * @param direction The direction you want to get the quote from
  */

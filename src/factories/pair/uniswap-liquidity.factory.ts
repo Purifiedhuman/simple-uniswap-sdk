@@ -125,11 +125,9 @@ export class UniswapLiquidityFactory {
   ): Promise<LiquidityTradeContext> {
     switch (this.tradePath()) {
       case TradePath.erc20ToEth:
-      // return await this.findBestPriceAndPathErc20ToEth(amount, direction);
       case TradePath.ethToErc20:
-      // return await this.findBestPriceAndPathEthToErc20(amount, direction);
       case TradePath.erc20ToErc20:
-        return await this.findBestPriceAndPathErc20ToErc20(amount, direction, convertAmount);
+        return await this.findBestLiquidityPrice(amount, direction, convertAmount);
       default:
         throw new UniswapError(
           `${this.tradePath()} is not defined`,
@@ -312,11 +310,11 @@ export class UniswapLiquidityFactory {
   }
 
   /**
-   * finds the best price and path for Erc20ToErc20
+   * finds the best liquidity price
    * @param baseConvertRequest The base convert request can be both input or output direction
    * @param direction The direction you want to get the quote from
    */
-  private async findBestPriceAndPathErc20ToErc20(
+  private async findBestLiquidityPrice(
     baseConvertRequest: BigNumber,
     direction: TradeDirection,
     convertAmount?: BigNumber,
@@ -363,15 +361,12 @@ export class UniswapLiquidityFactory {
         balance: liquidityQuotes.toBalance,
       },
       lpTokensToReceive: liquidityQuotes.lpTokensToReceive,
-      poolShare: "",
+      poolShare: liquidityQuotes.poolShares,
       transaction: liquidityQuotes.transaction,
-      gasPriceEstimatedBy: "",
       lpBalance: liquidityQuotes.lpBalance,
       quoteChanged$: this._quoteChanged$,
       destroy: () => this.destroy(),
     };
-
-    console.log(tradeContext);
 
     return tradeContext;
   }

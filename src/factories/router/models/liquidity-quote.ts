@@ -20,5 +20,5 @@ export interface LiquidityQuote {
   quoteDirection: TradeDirection;
   lpBalance: string;
   lpTokensToReceive: string;
-  gasPriceEstimatedBy?: string | undefined;
+  poolShares: string;
 }

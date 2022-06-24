@@ -57,7 +57,7 @@ const routeTest = async () => {
 
   const uniswapLiquidityFactory = await uniswapMain.createLiquidityFactory();
 
-  const trade = await uniswapLiquidityFactory.trade('100', TradeDirection.input, '0');
+  const trade = await uniswapLiquidityFactory.trade('4854', TradeDirection.input, '0');
 
   
   

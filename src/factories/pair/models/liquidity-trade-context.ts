@@ -30,7 +30,6 @@ export interface LiquidityTradeContext {
   lpTokensToReceive: string;
   poolShare: string;
   transaction: Transaction;
-  gasPriceEstimatedBy: string | undefined;
   lpBalance: string;
   quoteChanged$: UniswapStream<LiquidityTradeContext>;
   destroy: () => void;
