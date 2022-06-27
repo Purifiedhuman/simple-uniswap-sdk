@@ -16,6 +16,7 @@ export {
 } from './ethers-provider';
 export { GasSettings } from './factories/pair/models/gas-settings';
 export { TradeContext } from './factories/pair/models/trade-context';
+export { LiquidityTradeContext } from './factories/pair/models/liquidity-trade-context';
 export { TradeDirection } from './factories/pair/models/trade-direction';
 export { Transaction } from './factories/pair/models/transaction';
 export {
