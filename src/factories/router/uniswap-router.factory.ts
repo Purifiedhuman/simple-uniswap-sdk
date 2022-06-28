@@ -674,8 +674,8 @@ export class UniswapRouterFactory {
         )
 
         transaction = this.buildUpTransactionEth(UniswapVersion.v2, direction === TradeDirection.input
-          ? etherAmountToTradeInBigNumber
-          : etherExpectedConvertQuoteInBigNumber, data);
+          ? etherExpectedConvertQuoteInBigNumber
+          : etherAmountToTradeInBigNumber , data);
         break;
       case TradePath.erc20ToErc20:
         data = this.generateAddLiquidityDataErc20AndErc20(

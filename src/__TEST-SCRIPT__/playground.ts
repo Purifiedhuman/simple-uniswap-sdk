@@ -13,9 +13,9 @@ import { UniswapMain } from '../factories/pair/uniswap-main';
 
 const routeTest = async () => {
   
-  const fromTokenContractAddress = '0x8a1aaE68BA6DDbfaDe8359f18321e87d8ab8Fae9'; //0x8a1aaE68BA6DDbfaDe8359f18321e87d8ab8Fae9
-  const toTokenContractAddress = '0xC285cc080a40aE0Fb4Ae198b2FB5cbdb4A7F3E66'; //0xC285cc080a40aE0Fb4Ae198b2FB5cbdb4A7F3E66
-  const ethereumAddress = '0x5Bc17496281DFA029BDC1Ecc7B589434aab98c10';
+  const fromTokenContractAddress = '0xC285cc080a40aE0Fb4Ae198b2FB5cbdb4A7F3E66'; //0x8a1aaE68BA6DDbfaDe8359f18321e87d8ab8Fae9
+  const toTokenContractAddress = '0x451002da4394e8ff717Ff6Dc4F48BFfA6139A858_ETH'; //0xC285cc080a40aE0Fb4Ae198b2FB5cbdb4A7F3E66
+  const ethereumAddress = '0xFBE0f89Aa021d7FE6329F81CA89dBCe860B4B268';
 
   const uniswapMain = new UniswapMain({
     fromTokenContractAddress,
@@ -57,11 +57,9 @@ const routeTest = async () => {
 
   const uniswapLiquidityFactory = await uniswapMain.createLiquidityFactory();
 
-  const trade = await uniswapLiquidityFactory.trade('4854', TradeDirection.input, '0');
-
+  const trade = await uniswapLiquidityFactory.trade('5', TradeDirection.input, '0');
   
-  
-  console.log('End', trade.expectedConvertQuote);
+  console.log('End', trade);
 };
 
 routeTest();
