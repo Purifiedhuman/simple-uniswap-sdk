@@ -16,7 +16,7 @@ export interface LiquidityTradeContext {
   tokenAHasEnoughAllowance: boolean;
   tokenBHasEnoughAllowance: boolean;
   tokenAApprovalTransaction?: Transaction | undefined;
-  tokenABpprovalTransaction?: Transaction | undefined;
+  tokenBApprovalTransaction?: Transaction | undefined;
   tokenA: Token;
   tokenABalance: {
     hasEnough: boolean;

@@ -344,7 +344,7 @@ export class UniswapLiquidityFactory {
           true
         )
         : undefined,
-      tokenABpprovalTransaction: !liquidityQuotes.toHasEnoughAllowance
+      tokenBApprovalTransaction: !liquidityQuotes.toHasEnoughAllowance
         ? await this.generateApproveMaxAllowanceData(
           liquidityQuotes.uniswapVersion,
           false
