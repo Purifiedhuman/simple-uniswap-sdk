@@ -613,6 +613,11 @@ export class UniswapRouterFactory {
       isFirstSupplier = true;
     }
 
+    if (isFirstSupplier) {
+      token0Address = removeEthFromContractAddress(this._fromToken.contractAddress);
+      token1Address = removeEthFromContractAddress(this._toToken.contractAddress);
+    }
+
     const baseConvertRequestDecimals = direction === TradeDirection.input
       ? this._fromToken.decimals
       : this._toToken.decimals;
@@ -622,7 +627,10 @@ export class UniswapRouterFactory {
       : this._fromToken.decimals;
 
     const weiBaseConvertRequestInBigNumber = new BigNumber(weiTradeAmountInHex);
-    const weiExpectedConvertQuoteInBigNumber = new BigNumber(weiExpectedConvertQuoteInHex ?? 0);
+    const weiExpectedConvertQuoteInBigNumber =
+      isFirstSupplier
+        ? new BigNumber(etherDirectConvertAmount.shiftedBy(expectedConvertQuoteDecimals))
+        : new BigNumber(weiExpectedConvertQuoteInHex ?? 0);
 
     const etherExpectedConvertQuoteInBigNumber = this.formatConvertQuoteToEtherBigNumber(weiExpectedConvertQuoteInBigNumber, direction);
 
@@ -675,7 +683,7 @@ export class UniswapRouterFactory {
 
         transaction = this.buildUpTransactionEth(UniswapVersion.v2, direction === TradeDirection.input
           ? etherExpectedConvertQuoteInBigNumber
-          : etherAmountToTradeInBigNumber , data);
+          : etherAmountToTradeInBigNumber, data);
         break;
       case TradePath.erc20ToErc20:
         data = this.generateAddLiquidityDataErc20AndErc20(

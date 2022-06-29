@@ -326,7 +326,7 @@ export class UniswapLiquidityFactory {
     );
 
     const tradeContext: LiquidityTradeContext = {
-      uniswapVersion: UniswapVersion.v2, //hardcode first
+      uniswapVersion: UniswapVersion.v2, //hardcode, no support for v3
       quoteDirection: direction,
       isFirstSupplier: liquidityQuotes.isFirstSupplier,
       baseConvertRequest: liquidityQuotes.baseConvertRequest,
@@ -335,7 +335,7 @@ export class UniswapLiquidityFactory {
         ? liquidityQuotes.baseConvertRequestMinWithSlippage : liquidityQuotes.expectedConvertQuoteMinWithSlippage,
       minTokenBAmountConvertQuote: direction === TradeDirection.input
         ? liquidityQuotes.expectedConvertQuoteMinWithSlippage : liquidityQuotes.baseConvertRequestMinWithSlippage,
-      tradeExpires: liquidityQuotes.tradeExpires, //Take from liquidityQuotes
+      tradeExpires: liquidityQuotes.tradeExpires,
       tokenAHasEnoughAllowance: liquidityQuotes.fromHasEnoughAllowance,
       tokenBHasEnoughAllowance: liquidityQuotes.toHasEnoughAllowance,
       tokenAApprovalTransaction: !liquidityQuotes.fromHasEnoughAllowance
