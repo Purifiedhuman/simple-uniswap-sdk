@@ -13,7 +13,7 @@ import {
 } from './models/uniswap-pair-contexts';
 import { UniswapPairFactoryContext } from './models/uniswap-pair-factory-context';
 import { UniswapPairSettings } from './models/uniswap-pair-settings';
-import { UniswapLiquidityFactory } from './uniswap-liquidity.factory';
+import { UniswapAddLiquidityFactory } from './uniswap-add-liquidity.factory';
 import { UniswapSwapFactory } from './uniswap-swap.factory';
 
 export class UniswapMain {
@@ -121,7 +121,7 @@ export class UniswapMain {
   }
 
   /**
-   * Create factory to be able to call methods on the 2 tokens
+   * Create factory to be able to call swap methods on the 2 tokens
    */
   public async createSwapFactory(): Promise<UniswapSwapFactory> {
     if (this._uniswapPairContext.settings?.customNetwork === undefined) {
@@ -169,9 +169,9 @@ export class UniswapMain {
   }
 
     /**
-   * Create factory to be able to call methods on the 2 tokens
+   * Create factory to be able to call add liquidity methods on the 2 tokens
    */
-     public async createLiquidityFactory(): Promise<UniswapLiquidityFactory> {
+     public async createLiquidityFactory(): Promise<UniswapAddLiquidityFactory> {
       if (this._uniswapPairContext.settings?.customNetwork === undefined) {
         const chainId = this._ethersProvider.network().chainId;
         if (
@@ -213,6 +213,6 @@ export class UniswapMain {
         ethersProvider: this._ethersProvider,
       };
   
-      return new UniswapLiquidityFactory(new CoinGecko(), uniswapFactoryContext);
+      return new UniswapAddLiquidityFactory(new CoinGecko(), uniswapFactoryContext);
     }
 }
