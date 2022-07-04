@@ -462,6 +462,82 @@ export class UniswapRouterFactory {
     };
   }
 
+  public async getSuppliedPairs(): Promise<Array<String>> {
+    const suppliedPairsAddress : String[] = [];
+
+    const allPairsLength = new BigNumber(await this._uniswapContractFactoryV2.allPairsLength()).toNumber();
+
+    const allPairsContractCallContext: ContractCallContext<RouteContext[]>[] = [];
+
+    allPairsContractCallContext.push({
+      reference: `${UniswapVersion.v2}-factory`,
+      contractAddress: uniswapContracts.v2.getFactoryAddress(
+        this._settings.cloneUniswapContractDetails
+      ),
+      abi: UniswapContractContextV2.factoryAbi,
+      calls: [],
+    });
+
+    for (let i = 0; i < allPairsLength; i++) {
+      allPairsContractCallContext[0].calls.push({
+        reference: `pair[${i}]`,
+        methodName: 'allPairs',
+        methodParameters: [i]
+      })
+    }
+
+    //Get all pairs in factory contract
+    const allPairsContractCallResults = await this._multicall.call(allPairsContractCallContext);
+
+    const allPairsResults = allPairsContractCallResults.results[`${UniswapVersion.v2}-factory`];
+
+    const allPairs = allPairsResults.callsReturnContext.filter(
+      (c) => c.success
+    ).map(
+      (c) => c.returnValues[0]
+    )
+
+    const getPairsBalanceContractCallContext: ContractCallContext<RouteContext[]>[] = [];
+
+    //Get balance for wallet address for every pairs
+    for (let i = 0; i < allPairs.length; i++) {
+      getPairsBalanceContractCallContext.push({
+        reference: `${UniswapVersion.v2}-pair-${allPairs[i]}`,
+        contractAddress: allPairs[i],
+        abi: UniswapContractContextV2.pairAbi,
+        calls:[
+          {
+            reference: `balanceOf-${i}`,
+            methodName: 'balanceOf',
+            methodParameters: [this._ethereumAddress],
+          },
+        ],
+        context: allPairs[i]
+      })
+    }
+
+    const getPairsBalanceContractCallResults = await this._multicall.call(getPairsBalanceContractCallContext);
+
+    for(const key in getPairsBalanceContractCallResults.results){
+      const contractCallReturnContext = getPairsBalanceContractCallResults.results[key];
+      if(contractCallReturnContext){
+        const callReturnContext = contractCallReturnContext.callsReturnContext[0];
+
+        if (!callReturnContext.success) {
+          continue;
+        }
+
+        const balance = new BigNumber(callReturnContext.returnValues[0].hex);
+
+        if(balance.isGreaterThan(0)){
+          suppliedPairsAddress.push(contractCallReturnContext.originalContractCallContext.context);
+        }
+      }
+    }
+
+    return suppliedPairsAddress;
+
+  }
 
 
 

@@ -168,6 +168,13 @@ export class UniswapLiquidityFactory {
   }
 
   /**
+ * Find Supplied Pairs trade - this will loop through factory contract to check all supplied pairs for wallet address
+ */
+  public async findSuppliedPairs(): Promise<Array<Object>> {
+    return this._uniswapRouterFactory.getSuppliedPairs();
+  }
+
+  /**
    * Find the best route rate out of all the route quotes
    * @param amountToTrade The amount to trade
    * @param direction The direction you want to get the quote from
