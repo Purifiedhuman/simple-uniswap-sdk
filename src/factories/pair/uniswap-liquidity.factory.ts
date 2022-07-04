@@ -17,6 +17,7 @@ import { AllowanceAndBalanceOf } from '../token/models/allowance-balance-of';
 import { Token } from '../token/models/token';
 import { TokenFactory } from '../token/token.factory';
 import { CurrencyLiquidityTradeContext } from './models/current-liquidity-trade-context';
+import { LiquidityInfoContext } from './models/liquidity-info-context';
 import { LiquidityTradeContext } from './models/liquidity-trade-context';
 import { TradeDirection } from './models/trade-direction';
 import { Transaction } from './models/transaction';
@@ -48,6 +49,7 @@ export class UniswapLiquidityFactory {
   private _watchingBlocks = false;
   private _currentLiquidityTradeContext: CurrencyLiquidityTradeContext | undefined;
   private _quoteChanged$: Subject<LiquidityTradeContext> = new Subject<LiquidityTradeContext>();
+  private _myLiquidityQuoteChanged$: Array<Subject<LiquidityInfoContext>> = [];
 
   constructor(
     private _coinGecko: CoinGecko,
@@ -143,6 +145,13 @@ export class UniswapLiquidityFactory {
     for (let i = 0; i < this._quoteChanged$.observers.length; i++) {
       this._quoteChanged$.observers[i].complete();
     }
+
+    this._myLiquidityQuoteChanged$.forEach((subject) => {
+      for (let i = 0; i < subject.observers.length; i++) {
+        subject.observers[i].complete();
+      }
+    })
+
     this.unwatchTradePrice();
   }
 
@@ -170,8 +179,35 @@ export class UniswapLiquidityFactory {
   /**
  * Find Supplied Pairs trade - this will loop through factory contract to check all supplied pairs for wallet address
  */
-  public async findSuppliedPairs(): Promise<Array<String>> {
+  public async findSuppliedPairs(): Promise<Array<string>> {
     return this._uniswapRouterFactory.getSuppliedPairs();
+  }
+
+  public async getPairsLiquidityInfo(pairAddresses: Array<string>
+  ): Promise<Array<LiquidityInfoContext>> {
+    const liquidityInfo = await this._uniswapRouterFactory.getPairLiquidityInfo(pairAddresses);
+    const liquidityInfoContextArr: Array<LiquidityInfoContext> = [];
+
+    liquidityInfo.forEach((val, index) => {
+      this._myLiquidityQuoteChanged$[index] = new Subject<LiquidityInfoContext>();
+
+      const liquidityInfoContext: LiquidityInfoContext = {
+        uniswapVersion: UniswapVersion.v2,
+        pairAddress: val.pairAddress,
+        token0: val.token0,
+        token0EstimatedPool: val.token0EstimatedPool,
+        token1: val.token1,
+        token1EstimatedPool: val.token1EstimatedPool,
+        lpTokens: val.lpTokens,
+        poolShares: val.poolShares,
+        quoteChanged$: this._myLiquidityQuoteChanged$[index],
+        destroy: () => this.destroy(),
+      }
+
+      liquidityInfoContextArr.push(liquidityInfoContext);
+    });
+
+    return liquidityInfoContextArr;
   }
 
   /**

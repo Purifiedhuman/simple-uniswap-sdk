@@ -10,6 +10,7 @@ import {
 } from '../../ABI/types/uniswap-router-v3';
 import { CoinGecko } from '../../coin-gecko';
 import { Constants } from '../../common/constants';
+import { ContractContext } from '../../common/contract-context';
 import { ErrorCodes } from '../../common/errors/error-codes';
 import { UniswapError } from '../../common/errors/uniswap-error';
 import { COMP } from '../../common/tokens/comp';
@@ -49,6 +50,7 @@ import { UniswapContractFactoryV2 } from '../uniswap-factory/v2/uniswap-contract
 import { RouterDirection } from './enums/router-direction';
 import { AllPossibleRoutes } from './models/all-possible-routes';
 import { BestRouteQuotes } from './models/best-route-quotes';
+import { LiquidityInfo } from './models/liquidity-info';
 import { LiquidityQuote } from './models/liquidity-quote';
 import { RouteContext } from './models/route-context';
 import { RouteQuote } from './models/route-quote';
@@ -462,12 +464,15 @@ export class UniswapRouterFactory {
     };
   }
 
-  public async getSuppliedPairs(): Promise<Array<String>> {
-    const suppliedPairsAddress : String[] = [];
+  /**
+   * Get Supplied Pairs by wallet address
+   */
+  public async getSuppliedPairs(): Promise<Array<string>> {
+    const suppliedPairsAddress: string[] = [];
 
     const allPairsLength = new BigNumber(await this._uniswapContractFactoryV2.allPairsLength()).toNumber();
 
-    const allPairsContractCallContext: ContractCallContext<RouteContext[]>[] = [];
+    const allPairsContractCallContext: ContractCallContext<String>[] = [];
 
     allPairsContractCallContext.push({
       reference: `${UniswapVersion.v2}-factory`,
@@ -497,7 +502,7 @@ export class UniswapRouterFactory {
       (c) => c.returnValues[0]
     )
 
-    const getPairsBalanceContractCallContext: ContractCallContext<RouteContext[]>[] = [];
+    const getPairsBalanceContractCallContext: ContractCallContext<String>[] = [];
 
     //Get balance for wallet address for every pairs
     for (let i = 0; i < allPairs.length; i++) {
@@ -505,7 +510,7 @@ export class UniswapRouterFactory {
         reference: `${UniswapVersion.v2}-pair-${allPairs[i]}`,
         contractAddress: allPairs[i],
         abi: UniswapContractContextV2.pairAbi,
-        calls:[
+        calls: [
           {
             reference: `balanceOf-${i}`,
             methodName: 'balanceOf',
@@ -518,9 +523,9 @@ export class UniswapRouterFactory {
 
     const getPairsBalanceContractCallResults = await this._multicall.call(getPairsBalanceContractCallContext);
 
-    for(const key in getPairsBalanceContractCallResults.results){
+    for (const key in getPairsBalanceContractCallResults.results) {
       const contractCallReturnContext = getPairsBalanceContractCallResults.results[key];
-      if(contractCallReturnContext){
+      if (contractCallReturnContext) {
         const callReturnContext = contractCallReturnContext.callsReturnContext[0];
 
         if (!callReturnContext.success) {
@@ -529,7 +534,7 @@ export class UniswapRouterFactory {
 
         const balance = new BigNumber(callReturnContext.returnValues[0].hex);
 
-        if(balance.isGreaterThan(0)){
+        if (balance.isGreaterThan(0)) {
           suppliedPairsAddress.push(contractCallReturnContext.originalContractCallContext.context);
         }
       }
@@ -539,13 +544,251 @@ export class UniswapRouterFactory {
 
   }
 
+  /**
+   * Get pairs
+   */
+  public async getPairLiquidityInfo(pairAddresses: Array<string>
+  ): Promise<Array<LiquidityInfo>> {
+    if (pairAddresses.length === 0) { return []; }
+
+    const suppliedLiquidityPairsInfo: LiquidityInfo[] = [];
+    const tokenAddressLookUp: Set<string> = new Set();
+
+    const contractCallContext: ContractCallContext<String>[] = [];
+
+    for (let i = 0; i < pairAddresses.length; i++) {
+      contractCallContext.push({
+        reference: `${UniswapVersion.v2}-pair-${pairAddresses[i]}`,
+        contractAddress: pairAddresses[i],
+        abi: UniswapContractContextV2.pairAbi,
+        calls: [
+          {
+            reference: `token0`,
+            methodName: 'token0',
+            methodParameters: [],
+          },
+          {
+            reference: `token1`,
+            methodName: 'token1',
+            methodParameters: [],
+          },
+          {
+            reference: `getReserves`,
+            methodName: 'getReserves',
+            methodParameters: [],
+          },
+          {
+            reference: `totalSupply`,
+            methodName: 'totalSupply',
+            methodParameters: [],
+          },
+          {
+            reference: `balanceOf`,
+            methodName: 'balanceOf',
+            methodParameters: [this._ethereumAddress],
+          },
+          {
+            reference: `decimals`,
+            methodName: 'decimals',
+            methodParameters: [],
+          }
+        ],
+        context: pairAddresses[i]
+      })
+    }
+
+    const contractCallResults = await this._multicall.call(contractCallContext);
+
+    for (const key in contractCallResults.results) {
+      const contractCallReturnContext = contractCallResults.results[key];
+
+      if (contractCallReturnContext) {
+        let lpTokenDecimals = 18; //default
+        let token0Address: string = '';
+        let token1Address: string = '';
+        let weiToken0ReserveInHex: string = '';
+        let weiToken1ReserveInHex: string = '';
+        let blockTimestampLast: string = '';
+        let weiTotalSupplyInHex: string = '';
+        let weiBalanceOfInHex: string = '';
+
+        for (let i = 0; i < contractCallReturnContext.callsReturnContext.length; i++) {
+          const callReturnContext = contractCallReturnContext.callsReturnContext[i];
+
+          if (!callReturnContext.success) {
+            continue;
+          }
+
+          switch (callReturnContext.reference) {
+            case `token0`:
+              token0Address = callReturnContext.returnValues[0];
+              break;
+            case `token1`:
+              token1Address = callReturnContext.returnValues[0];
+              break;
+            case `getReserves`:
+              weiToken0ReserveInHex = callReturnContext.returnValues[0].hex;
+              weiToken1ReserveInHex = callReturnContext.returnValues[1].hex;
+              blockTimestampLast = callReturnContext.returnValues[2];
+              break;
+            case `totalSupply`:
+              weiTotalSupplyInHex = callReturnContext.returnValues[0].hex;
+              break;
+            case `balanceOf`:
+              weiBalanceOfInHex = callReturnContext.returnValues[0].hex;
+              break;
+            case `decimals`:
+              lpTokenDecimals = callReturnContext.returnValues[0];
+              break;
+          }
+        }
+
+        const etherBalanceOf = formatEther(new BigNumber(weiBalanceOfInHex));
+        const etherTotalSupply = formatEther(new BigNumber(weiTotalSupplyInHex));
+
+        tokenAddressLookUp.add(token0Address);
+        tokenAddressLookUp.add(token1Address);
+
+        suppliedLiquidityPairsInfo.push({
+          walletAddress: this._ethereumAddress,
+          pairAddress: contractCallReturnContext.originalContractCallContext.context,
+          token0Address: token0Address,
+          token1Address: token1Address,
+          pairToken0Balance: '',
+          pairToken1Balance: '',
+          poolShares: this.calculatesPoolShare(etherBalanceOf, etherTotalSupply),
+          lpTokens: formatEther(new BigNumber(weiBalanceOfInHex)).toFixed(),
+          token0: undefined,
+          token0EstimatedPool: undefined,
+          token1: undefined,
+          token1EstimatedPool: undefined,
+          pairTotalSupply: etherTotalSupply.toFixed(),
+          blockTimestampLast: blockTimestampLast
+        })
+      }
+    }
+
+    if (tokenAddressLookUp.size > 0) {
+      const tokens = await this.lookUpTokens(tokenAddressLookUp);
+
+      tokens.forEach((tokenInfo) => {
+        suppliedLiquidityPairsInfo.map(
+          (suppliedToken) => {
+            if (suppliedToken.token0Address === tokenInfo.contractAddress) {
+              suppliedToken.token0 = deepClone(tokenInfo);
+            }
+
+            if (suppliedToken.token1Address === tokenInfo.contractAddress) {
+              suppliedToken.token1 = deepClone(tokenInfo);
+            }
+
+            return suppliedToken;
+          }
+        )
+      });
+    }
+
+    /************************** Calculate token0 and token1 share according to LP(Start) ***************************/
+    const pairBalanceOfToken01ContractCallContext: ContractCallContext<Number>[] = [];
+
+    for (let i = 0; i < suppliedLiquidityPairsInfo.length; i++) {
+      pairBalanceOfToken01ContractCallContext.push({
+        reference: `${UniswapVersion.v2}-${suppliedLiquidityPairsInfo[i].pairAddress}-token0balance`,
+        contractAddress: suppliedLiquidityPairsInfo[i].token0Address,
+        abi: ContractContext.erc20Abi,
+        calls: [
+          {
+            reference: `balanceOf`,
+            methodName: 'balanceOf',
+            methodParameters: [suppliedLiquidityPairsInfo[i].pairAddress],
+          },
+          {
+            reference: `decimals`,
+            methodName: 'decimals',
+            methodParameters: [],
+          }
+        ],
+        context: i
+      })
+
+      pairBalanceOfToken01ContractCallContext.push({
+        reference: `${UniswapVersion.v2}-${suppliedLiquidityPairsInfo[i].pairAddress}-token1balance`,
+        contractAddress: suppliedLiquidityPairsInfo[i].token1Address,
+        abi: ContractContext.erc20Abi,
+        calls: [
+          {
+            reference: `balanceOf`,
+            methodName: 'balanceOf',
+            methodParameters: [suppliedLiquidityPairsInfo[i].pairAddress],
+          },
+          {
+            reference: `decimals`,
+            methodName: 'decimals',
+            methodParameters: [],
+          }
+        ],
+        context: i
+      })
+    }
+
+    const pairBalanceOfToken01ContractCallResults = await this._multicall.call(pairBalanceOfToken01ContractCallContext);
+
+    for (const key in pairBalanceOfToken01ContractCallResults.results) {
+      const contractCallReturnContext = pairBalanceOfToken01ContractCallResults.results[key];
+
+      if (contractCallReturnContext) {
+        let weiBalanceOfInHex: string = '';
+        let tokenDecimals = 18; //default
+
+        for (let i = 0; i < contractCallReturnContext.callsReturnContext.length; i++) {
+          const callReturnContext = contractCallReturnContext.callsReturnContext[i];
+
+          if (!callReturnContext.success) {
+            continue;
+          }
+
+          switch (callReturnContext.reference) {
+            case `balanceOf`:
+              weiBalanceOfInHex = callReturnContext.returnValues[0].hex;
+              break;
+            case `decimals`:
+              tokenDecimals = callReturnContext.returnValues[0];
+              break;
+          }
+        }
+
+        if (contractCallReturnContext.originalContractCallContext.reference.includes('token0balance')) {
+          suppliedLiquidityPairsInfo[contractCallReturnContext.
+            originalContractCallContext.context].pairToken0Balance = new BigNumber(weiBalanceOfInHex).shiftedBy(tokenDecimals * -1).toFixed(tokenDecimals);
+        }
+
+        if (contractCallReturnContext.originalContractCallContext.reference.includes('token1balance')) {
+          suppliedLiquidityPairsInfo[contractCallReturnContext.
+            originalContractCallContext.context].pairToken1Balance = new BigNumber(weiBalanceOfInHex).shiftedBy(tokenDecimals * -1).toFixed(tokenDecimals);
+        }
+      }
+    }
+
+    suppliedLiquidityPairsInfo.map((val) => {
+      val.token0EstimatedPool = this.calculateToken0Token1PoolFromLP(
+        new BigNumber(val.lpTokens), new BigNumber(val.pairTotalSupply), new BigNumber(val.pairToken0Balance));
+
+      val.token1EstimatedPool = this.calculateToken0Token1PoolFromLP(
+        new BigNumber(val.lpTokens), new BigNumber(val.pairTotalSupply), new BigNumber(val.pairToken1Balance));
+
+      return val;
+    })
+    /************************** Calculate token0 and token1 share according to LP(End) ***************************/
+
+    return suppliedLiquidityPairsInfo;
+  }
 
 
   /**
- * Get liquidity quote for the amountToTrade
- * @param etherAmountToTradeInBigNumber The amount to trade
- * @param direction The direction you want to get the quote from
- */
+   * Get liquidity quote for the amountToTrade
+   * @param etherAmountToTradeInBigNumber The amount to trade
+   * @param direction The direction you want to get the quote from
+   */
   public async getLiquidityQuote(
     etherAmountToTradeInBigNumber: BigNumber,
     direction: TradeDirection,
@@ -829,7 +1072,7 @@ export class UniswapRouterFactory {
       }
     }
 
-    const lpTokens = await this.calculatesLPTokensToReceive(
+    const lpTokens = this.calculatesLPTokensToReceive(
       etherTokenAmount0,
       etherTokenAmount1,
       etherReserve0,
@@ -1775,17 +2018,17 @@ export class UniswapRouterFactory {
    * @param reserve1 The ether reserve0 in PairContract
    * @param totalSupply The totalSupply in PairContract
    */
-  private async calculatesLPTokensToReceive(
+  private calculatesLPTokensToReceive(
     etherAmount0: BigNumber,
     etherAmount1: BigNumber,
     etherReserve0: BigNumber,
     etherReserve1: BigNumber,
     etherTotalSupply: BigNumber,
     isFirstSupplier: boolean,
-  ): Promise<{
+  ): {
     estimatedLPTokens: string;
     estimatedPoolShares: string;
-  }> {
+  } {
     let liquidity = new BigNumber(0);
     if (isFirstSupplier) {
       liquidity = etherAmount0.multipliedBy(etherAmount1).minus(new BigNumber('1000e-18')).sqrt();
@@ -1804,6 +2047,32 @@ export class UniswapRouterFactory {
       estimatedLPTokens: liquidity.toFixed(),
       estimatedPoolShares: percentEstimatedPoolShareInBigNumber.isGreaterThan(100) ? '100' : percentEstimatedPoolShareInBigNumber.toFixed(2)
     };
+  }
+
+  private calculatesPoolShare(
+    etherLpTokensAmount: BigNumber,
+    etherTotalSupply: BigNumber
+  ): string {
+    const percentEstimatedPoolShareInBigNumber = etherLpTokensAmount.div(etherTotalSupply).shiftedBy(2);
+
+    return percentEstimatedPoolShareInBigNumber.isGreaterThan(100) ? '100' : percentEstimatedPoolShareInBigNumber.toFixed(2);
+  }
+
+  private async lookUpTokens(
+    address: Set<string>
+  ): Promise<Array<Token>> {
+    const tokens = await this._tokensFactory.getTokens(Array.from(address));
+
+    return tokens;
+  }
+
+  private calculateToken0Token1PoolFromLP(
+    etherLiquidity: BigNumber,
+    etherTotalSupply: BigNumber,
+    etherPairBalance: BigNumber
+  ): string {
+
+    return etherLiquidity.multipliedBy(etherPairBalance).div(etherTotalSupply).toFixed();
   }
 
   /**

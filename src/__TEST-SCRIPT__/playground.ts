@@ -15,7 +15,7 @@ const routeTest = async () => {
   
   const fromTokenContractAddress = '0xC285cc080a40aE0Fb4Ae198b2FB5cbdb4A7F3E66'; //0x8a1aaE68BA6DDbfaDe8359f18321e87d8ab8Fae9
   const toTokenContractAddress = '0xa6673B7c3B6A30DA1B67e62dD4A0319bFE755Edb'; //0xC285cc080a40aE0Fb4Ae198b2FB5cbdb4A7F3E66
-  const ethereumAddress = '0xFBE0f89Aa021d7FE6329F81CA89dBCe860B4B268';
+  const ethereumAddress = '0xa207aDd901BF900C81Feb04D33968a0132bD68DA';
 
   const uniswapMain = new UniswapMain({
     fromTokenContractAddress,
@@ -59,8 +59,9 @@ const routeTest = async () => {
 
   // const trade = await uniswapLiquidityFactory.trade('34', TradeDirection.input, '10');
   const suppliedPairs = await uniswapLiquidityFactory.findSuppliedPairs();
+  const suppliedPairsInfo = await uniswapLiquidityFactory.getPairsLiquidityInfo(suppliedPairs);
 
-  console.log(suppliedPairs);
+  // console.log(suppliedPairsInfo);
 
 };
 
