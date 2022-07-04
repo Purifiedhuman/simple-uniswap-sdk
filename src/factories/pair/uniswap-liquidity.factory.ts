@@ -170,7 +170,7 @@ export class UniswapLiquidityFactory {
   /**
  * Find Supplied Pairs trade - this will loop through factory contract to check all supplied pairs for wallet address
  */
-  public async findSuppliedPairs(): Promise<Array<Object>> {
+  public async findSuppliedPairs(): Promise<Array<String>> {
     return this._uniswapRouterFactory.getSuppliedPairs();
   }
 
