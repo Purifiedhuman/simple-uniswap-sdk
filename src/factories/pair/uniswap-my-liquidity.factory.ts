@@ -1,8 +1,6 @@
-import { deepCopy } from 'ethers/lib/utils';
 import { Subject } from 'rxjs';
 import { CoinGecko } from '../../coin-gecko';
 import { Constants } from '../../common/constants';
-import { deepClone } from '../../common/utils/deep-clone';
 import { UniswapVersion } from '../../enums/uniswap-version';
 import { uniswapContracts } from '../../uniswap-contract-context/get-uniswap-contracts';
 import { LiquidityInfo } from '../router/models/liquidity-info';
@@ -10,9 +8,7 @@ import { UniswapRouterFactory } from '../router/uniswap-router.factory';
 import { AllowanceAndBalanceOf } from '../token/models/allowance-balance-of';
 import { Token } from '../token/models/token';
 import { TokenFactory } from '../token/token.factory';
-import { CurrentLiquidityTradeContext } from './models/current-liquidity-trade-context';
 import { LiquidityInfoContext, LiquidityInfoContextSingle } from './models/liquidity-info-context';
-import { LiquidityTradeContext } from './models/liquidity-trade-context';
 import { Transaction } from './models/transaction';
 import { UniswapPairFactoryContext } from './models/uniswap-pair-factory-context';
 
