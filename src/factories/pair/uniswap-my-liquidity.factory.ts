@@ -1,25 +1,22 @@
-import BigNumber from 'bignumber.js';
+import { deepCopy } from 'ethers/lib/utils';
 import { Subject } from 'rxjs';
 import { CoinGecko } from '../../coin-gecko';
 import { Constants } from '../../common/constants';
 import { deepClone } from '../../common/utils/deep-clone';
 import { UniswapVersion } from '../../enums/uniswap-version';
 import { uniswapContracts } from '../../uniswap-contract-context/get-uniswap-contracts';
-import { AllPossibleRoutes } from '../router/models/all-possible-routes';
-import { BestRouteQuotes } from '../router/models/best-route-quotes';
-import { RouteQuote } from '../router/models/route-quote';
+import { LiquidityInfo } from '../router/models/liquidity-info';
 import { UniswapRouterFactory } from '../router/uniswap-router.factory';
 import { AllowanceAndBalanceOf } from '../token/models/allowance-balance-of';
 import { Token } from '../token/models/token';
 import { TokenFactory } from '../token/token.factory';
 import { CurrentLiquidityTradeContext } from './models/current-liquidity-trade-context';
-import { LiquidityInfoContext } from './models/liquidity-info-context';
+import { LiquidityInfoContext, LiquidityInfoContextSingle } from './models/liquidity-info-context';
 import { LiquidityTradeContext } from './models/liquidity-trade-context';
-import { TradeDirection } from './models/trade-direction';
 import { Transaction } from './models/transaction';
 import { UniswapPairFactoryContext } from './models/uniswap-pair-factory-context';
 
-export class UniswapAddLiquidityFactory {
+export class UniswapMyLiquidityFactory {
   private _fromTokenFactory = new TokenFactory(
     this._uniswapPairFactoryContext.fromToken.contractAddress,
     this._uniswapPairFactoryContext.ethersProvider,
@@ -43,7 +40,8 @@ export class UniswapAddLiquidityFactory {
   );
 
   private _watchingBlocks = false;
-  private _quoteChanged$: Array<Subject<LiquidityInfoContext>> = [];
+  private _currentLiquidityInfoContext: LiquidityInfoContext | undefined;
+  private _quoteChanged$: Map<string, Subject<LiquidityInfoContextSingle>> = new Map();
 
   constructor(
     private _coinGecko: CoinGecko,
@@ -92,67 +90,38 @@ export class UniswapAddLiquidityFactory {
   }
 
   public async getPairsLiquidityInfo(pairAddresses: Array<string>
-  ): Promise<Array<LiquidityInfoContext>> {
+  ): Promise<LiquidityInfoContext> {
+    this.destroy();
+
+    const liquidityContext = this.executeLiquidityInfo(pairAddresses);
+    this.watchTradePrice();
+
+    return liquidityContext;
+  }
+
+  /**
+   * Execute the Liquidity Info
+   */
+  private async executeLiquidityInfo(
+    pairAddresses: Array<string>
+  ): Promise<LiquidityInfoContext> {
     const liquidityInfo = await this._uniswapRouterFactory.getPairLiquidityInfo(pairAddresses);
-    const liquidityInfoContextArr: Array<LiquidityInfoContext> = [];
+    const liquidityInfoContextArr: Array<LiquidityInfoContextSingle> = [];
 
-    liquidityInfo.forEach((val, index) => {
-      this._quoteChanged$[index] = new Subject<LiquidityInfoContext>();
+    liquidityInfo.forEach((val) => {
+      this._quoteChanged$.set(val.pairAddress, new Subject<LiquidityInfoContextSingle>());
 
-      const liquidityInfoContext: LiquidityInfoContext = {
-        uniswapVersion: UniswapVersion.v2,
-        pairAddress: val.pairAddress,
-        token0: val.token0,
-        token0EstimatedPool: val.token0EstimatedPool,
-        token1: val.token1,
-        token1EstimatedPool: val.token1EstimatedPool,
-        lpTokens: val.lpTokens,
-        poolShares: val.poolShares,
-        quoteChanged$: this._quoteChanged$[index],
-        destroy: () => this.destroy(),
-      }
+      const liquidityInfoContext: LiquidityInfoContextSingle = this.buildCurrentLiquidityInfoContext(val);
 
       liquidityInfoContextArr.push(liquidityInfoContext);
     });
 
-    return liquidityInfoContextArr;
-  }
+    this._currentLiquidityInfoContext = {
+      destroy: () => this.destroy(),
+      liquidityInfoContext: [...liquidityInfoContextArr]
+    }
 
-  /**
-   * Find the best route rate out of all the route quotes
-   * @param amountToTrade The amount to trade
-   * @param direction The direction you want to get the quote from
-   */
-  public async findBestRoute(
-    amountToTrade: string,
-    direction: TradeDirection
-  ): Promise<BestRouteQuotes> {
-    return await this._routes.findBestRoute(
-      new BigNumber(amountToTrade),
-      direction
-    );
-  }
-
-  /**
-   * Find the best route rate out of all the route quotes
-   * @param amountToTrade The amount to trade
-   * @param direction The direction you want to get the quote from
-   */
-  public async findAllPossibleRoutesWithQuote(
-    amountToTrade: string,
-    direction: TradeDirection
-  ): Promise<RouteQuote[]> {
-    return await this._routes.getAllPossibleRoutesWithQuotes(
-      new BigNumber(amountToTrade),
-      direction
-    );
-  }
-
-  /**
-   * Find all possible routes
-   */
-  public async findAllPossibleRoutes(): Promise<AllPossibleRoutes> {
-    return await this._routes.getAllPossibleRoutes();
+    return this._currentLiquidityInfoContext;
   }
 
   /**
@@ -220,26 +189,22 @@ export class UniswapAddLiquidityFactory {
   }
 
   /**
-   * Route getter
+   * Build the current Liquidity Info context
+   * @param trade The Liquidity Info context
    */
-  private get _routes(): UniswapRouterFactory {
-    return this._uniswapRouterFactory;
-  }
-
-  /**
-   * Build the current trade context
-   * @param trade The trade context
-   */
-  private buildCurrentTradeContext(trade: LiquidityTradeContext): CurrentLiquidityTradeContext {
-    return deepClone({
-      baseConvertRequest: trade.baseConvertRequest,
-      expectedConvertQuote: trade.expectedConvertQuote,
-      quoteDirection: trade.quoteDirection,
-      tokenA: trade.tokenA,
-      tokenB: trade.tokenB,
-      transaction: trade.transaction,
-      tradeExpires: trade.tradeExpires,
-    });
+  private buildCurrentLiquidityInfoContext(liquidityInfo: LiquidityInfo): LiquidityInfoContextSingle {
+    return {
+      uniswapVersion: UniswapVersion.v2,
+      pairAddress: liquidityInfo.pairAddress,
+      token0: liquidityInfo.token0,
+      token0EstimatedPool: liquidityInfo.token0EstimatedPool,
+      token1: liquidityInfo.token1,
+      token1EstimatedPool: liquidityInfo.token1EstimatedPool,
+      lpTokens: liquidityInfo.lpTokens,
+      poolShares: liquidityInfo.poolShares,
+      blockTimestampLast: liquidityInfo.blockTimestampLast,
+      quoteChanged$: this._quoteChanged$.get(liquidityInfo.pairAddress)
+    };
   }
 
   /**
@@ -249,7 +214,7 @@ export class UniswapAddLiquidityFactory {
     if (!this._watchingBlocks) {
       this._uniswapPairFactoryContext.ethersProvider.provider.on(
         'block',
-        async () => {
+        async (block) => {
           await this.handleNewBlock();
         }
       );
@@ -271,31 +236,26 @@ export class UniswapAddLiquidityFactory {
    * Handle new block for the trade price moving automatically emitting the stream if it changes
    */
   private async handleNewBlock(): Promise<void> {
-    // if (this._quoteChanged$.observers.length > 0 && this._currentLiquidityTradeContext) {
-    //   const trade = await this.executeTradePath(
-    //     new BigNumber(this._currentLiquidityTradeContext.baseConvertRequest),
-    //     this._currentLiquidityTradeContext.quoteDirection,
-    //     new BigNumber(this._currentLiquidityTradeContext.expectedConvertQuote)
-    //   );
+    const cachedAddresses = this._currentLiquidityInfoContext?.liquidityInfoContext.map((_context) => _context.pairAddress) ?? [];
+    const liquidityInfo = await this._uniswapRouterFactory.getPairLiquidityInfo(cachedAddresses);
 
-    //   if (
-    //     trade.tokenA.contractAddress ===
-    //     this._currentLiquidityTradeContext.tokenA.contractAddress &&
-    //     trade.tokenB.contractAddress ===
-    //     this._currentLiquidityTradeContext.tokenB.contractAddress &&
-    //     trade.transaction.from ===
-    //     this._uniswapPairFactoryContext.ethereumAddress
-    //   ) {
-    //     if (
-    //       trade.expectedConvertQuote !==
-    //       this._currentLiquidityTradeContext.expectedConvertQuote ||
-    //       this._currentLiquidityTradeContext.tradeExpires >
-    //       this._uniswapRouterFactory.generateTradeDeadlineUnixTime()
-    //     ) {
-    //       this._currentLiquidityTradeContext = this.buildCurrentTradeContext(trade);
-    //       this._quoteChanged$.next(trade);
-    //     }
-    //   }
-    // }
+    this._quoteChanged$.forEach(async (value, pairAddressKey) => {
+      const currLiquidityInfoContextSingle = this._currentLiquidityInfoContext?.liquidityInfoContext.find((_info) => {
+        return _info.pairAddress === pairAddressKey;
+      });
+
+      const latestLiquidityInfoContextSingle = liquidityInfo.find((_liquidityInfo) => {
+        return _liquidityInfo.pairAddress === pairAddressKey;
+      })
+
+      if (!!currLiquidityInfoContextSingle && !!latestLiquidityInfoContextSingle) {
+        if (latestLiquidityInfoContextSingle.blockTimestampLast > currLiquidityInfoContextSingle.blockTimestampLast) {
+          const newLiquidityInfoContextSingle = this.buildCurrentLiquidityInfoContext(latestLiquidityInfoContextSingle);
+          const index = this._currentLiquidityInfoContext!.liquidityInfoContext.findIndex((_context) => _context.pairAddress === pairAddressKey);
+          this._currentLiquidityInfoContext!.liquidityInfoContext[index] = newLiquidityInfoContextSingle;
+          value.next(newLiquidityInfoContextSingle)
+        }
+      }
+    });
   }
 }

@@ -17,7 +17,6 @@ import { AllowanceAndBalanceOf } from '../token/models/allowance-balance-of';
 import { Token } from '../token/models/token';
 import { TokenFactory } from '../token/token.factory';
 import { CurrentLiquidityTradeContext } from './models/current-liquidity-trade-context';
-import { LiquidityInfoContext } from './models/liquidity-info-context';
 import { LiquidityTradeContext } from './models/liquidity-trade-context';
 import { TradeDirection } from './models/trade-direction';
 import { Transaction } from './models/transaction';

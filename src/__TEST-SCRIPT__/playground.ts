@@ -1,5 +1,4 @@
 import { UniswapVersion } from '../enums/uniswap-version';
-import { TradeDirection } from '../factories/pair/models/trade-direction';
 import { UniswapPairSettings } from '../factories/pair/models/uniswap-pair-settings';
 import { UniswapMain } from '../factories/pair/uniswap-main';
 
@@ -12,7 +11,7 @@ import { UniswapMain } from '../factories/pair/uniswap-main';
 // GTC - 0xde30da39c46104798bb5aa3fe8b9e0e1f348163f
 
 const routeTest = async () => {
-  
+
   const fromTokenContractAddress = '0xC285cc080a40aE0Fb4Ae198b2FB5cbdb4A7F3E66'; //0x8a1aaE68BA6DDbfaDe8359f18321e87d8ab8Fae9
   const toTokenContractAddress = '0xa6673B7c3B6A30DA1B67e62dD4A0319bFE755Edb'; //0xC285cc080a40aE0Fb4Ae198b2FB5cbdb4A7F3E66
   const ethereumAddress = '0xa207aDd901BF900C81Feb04D33968a0132bD68DA';
@@ -55,13 +54,17 @@ const routeTest = async () => {
 
   // const startTime = new Date().getTime();
 
-  const uniswapLiquidityFactory = await uniswapMain.createLiquidityFactory();
+  const uniswapLiquidityFactory = await uniswapMain.createMyLiquidityFactory();
 
   // const trade = await uniswapLiquidityFactory.trade('34', TradeDirection.input, '10');
   const suppliedPairs = await uniswapLiquidityFactory.findSuppliedPairs();
   const suppliedPairsInfo = await uniswapLiquidityFactory.getPairsLiquidityInfo(suppliedPairs);
 
-  // console.log(suppliedPairsInfo);
+  suppliedPairsInfo.liquidityInfoContext[0].quoteChanged$?.subscribe((_context) => {
+    console.log(_context);
+  })
+
+  // console.log(suppliedPairsInfo[0]);
 
 };
 

@@ -606,8 +606,8 @@ export class UniswapRouterFactory {
         let lpTokenDecimals = 18; //default
         let token0Address: string = '';
         let token1Address: string = '';
-        let weiToken0ReserveInHex: string = '';
-        let weiToken1ReserveInHex: string = '';
+        // let weiToken0ReserveInHex: string = '';
+        // let weiToken1ReserveInHex: string = '';
         let blockTimestampLast: string = '';
         let weiTotalSupplyInHex: string = '';
         let weiBalanceOfInHex: string = '';
@@ -627,8 +627,8 @@ export class UniswapRouterFactory {
               token1Address = callReturnContext.returnValues[0];
               break;
             case `getReserves`:
-              weiToken0ReserveInHex = callReturnContext.returnValues[0].hex;
-              weiToken1ReserveInHex = callReturnContext.returnValues[1].hex;
+              // weiToken0ReserveInHex = callReturnContext.returnValues[0].hex;
+              // weiToken1ReserveInHex = callReturnContext.returnValues[1].hex;
               blockTimestampLast = callReturnContext.returnValues[2];
               break;
             case `totalSupply`:
@@ -657,7 +657,7 @@ export class UniswapRouterFactory {
           pairToken0Balance: '',
           pairToken1Balance: '',
           poolShares: this.calculatesPoolShare(etherBalanceOf, etherTotalSupply),
-          lpTokens: formatEther(new BigNumber(weiBalanceOfInHex)).toFixed(),
+          lpTokens: new BigNumber(weiBalanceOfInHex).shiftedBy(lpTokenDecimals * -1).toFixed(),
           token0: undefined,
           token0EstimatedPool: undefined,
           token1: undefined,
