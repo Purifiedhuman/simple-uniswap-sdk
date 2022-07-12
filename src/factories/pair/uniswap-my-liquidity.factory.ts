@@ -79,12 +79,15 @@ export class UniswapMyLiquidityFactory {
   }
 
   /**
- * Find Supplied Pairs trade - this will loop through factory contract to check all supplied pairs for wallet address
- */
+   * Find Supplied Pairs trade - this will loop through factory contract to check all supplied pairs for wallet address
+   */
   public async findSuppliedPairs(): Promise<Array<string>> {
     return this._uniswapRouterFactory.getSuppliedPairs();
   }
 
+  /**
+  * this will retrieve pair liquidity information for the pair addresses passed in parameter along with the reactive observer for each individual pair address information
+  */
   public async getPairsLiquidityInfo(pairAddresses: Array<string>
   ): Promise<LiquidityInfoContext> {
     this.destroy();
@@ -210,7 +213,7 @@ export class UniswapMyLiquidityFactory {
     if (!this._watchingBlocks) {
       this._uniswapPairFactoryContext.ethersProvider.provider.on(
         'block',
-        async (block) => {
+        async () => {
           await this.handleNewBlock();
         }
       );
