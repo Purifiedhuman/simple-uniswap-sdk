@@ -26,7 +26,8 @@ export {
 export { UniswapPairSettings } from './factories/pair/models/uniswap-pair-settings';
 export { UniswapMain } from './factories/pair/uniswap-main';
 export { UniswapSwapFactory } from './factories/pair/uniswap-swap.factory';
-export { UniswapAddLiquidityFactory as UniswapLiquidityFactory } from './factories/pair/uniswap-add-liquidity.factory';
+export { UniswapAddLiquidityFactory } from './factories/pair/uniswap-add-liquidity.factory';
+export { UniswapMyLiquidityFactory } from  './factories/pair/uniswap-my-liquidity.factory';
 export { UniswapPairContractFactoryPublicV2 } from './factories/pair/v2/uniswap-pair-contract.factory.public.v2';
 export { RouteQuote } from './factories/router/models/route-quote';
 export { UniswapRouterContractFactoryV2Public } from './factories/router/v2/uniswap-router-contract.factory.public.v2';
