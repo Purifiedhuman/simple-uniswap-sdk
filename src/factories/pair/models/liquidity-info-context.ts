@@ -11,7 +11,7 @@ export interface LiquidityInfoContextSingle {
   token1EstimatedPool: string | undefined;
   lpTokens: string;
   poolShares: string;
-  quoteChanged$: UniswapStream<LiquidityInfoContextSingle> | undefined;
+  quoteChanged$: UniswapStream<LiquidityInfoContextSingle>;
   blockTimestampLast: string;
 }
 

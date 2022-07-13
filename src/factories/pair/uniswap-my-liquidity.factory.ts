@@ -202,7 +202,7 @@ export class UniswapMyLiquidityFactory {
       lpTokens: liquidityInfo.lpTokens,
       poolShares: liquidityInfo.poolShares,
       blockTimestampLast: liquidityInfo.blockTimestampLast,
-      quoteChanged$: this._quoteChanged$.get(liquidityInfo.pairAddress)
+      quoteChanged$: this._quoteChanged$.get(liquidityInfo.pairAddress)!
     };
   }
 
