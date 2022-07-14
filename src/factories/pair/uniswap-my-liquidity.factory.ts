@@ -68,7 +68,7 @@ export class UniswapMyLiquidityFactory {
   /**
    * Destroy the trade instance watchers + subscriptions
    */
-  private destroy(): void {
+  public destroy(): void {
     this._quoteChanged$.forEach((subject) => {
       for (let i = 0; i < subject.observers.length; i++) {
         subject.observers[i].complete();

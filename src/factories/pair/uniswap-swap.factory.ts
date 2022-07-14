@@ -144,7 +144,7 @@ export class UniswapSwapFactory {
   /**
    * Destroy the trade instance watchers + subscriptions
    */
-  private destroy(): void {
+  public destroy(): void {
     for (let i = 0; i < this._quoteChanged$.observers.length; i++) {
       this._quoteChanged$.observers[i].complete();
     }
