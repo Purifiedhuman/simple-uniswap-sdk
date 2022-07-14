@@ -37,7 +37,7 @@ export class UniswapMyLiquidityFactory {
 
   private _watchingBlocks = false;
   private _currentLiquidityInfoContext: LiquidityInfoContext | undefined;
-  private _quoteChanged$: Map<string, Subject<LiquidityInfoContextSingle>> = new Map();
+  private quoteChanged$: Map<string, Subject<LiquidityInfoContextSingle>> = new Map();
 
   constructor(
     private _coinGecko: CoinGecko,
@@ -69,7 +69,7 @@ export class UniswapMyLiquidityFactory {
    * Destroy the trade instance watchers + subscriptions
    */
   public destroy(): void {
-    this._quoteChanged$.forEach((subject) => {
+    this.quoteChanged$.forEach((subject) => {
       for (let i = 0; i < subject.observers.length; i++) {
         subject.observers[i].complete();
       }
@@ -108,7 +108,7 @@ export class UniswapMyLiquidityFactory {
     const liquidityInfoContextArr: Array<LiquidityInfoContextSingle> = [];
 
     liquidityInfo.forEach((val) => {
-      this._quoteChanged$.set(val.pairAddress, new Subject<LiquidityInfoContextSingle>());
+      this.quoteChanged$.set(val.pairAddress, new Subject<LiquidityInfoContextSingle>());
 
       const liquidityInfoContext: LiquidityInfoContextSingle = this.buildCurrentLiquidityInfoContext(val);
 
@@ -116,7 +116,6 @@ export class UniswapMyLiquidityFactory {
     });
 
     this._currentLiquidityInfoContext = {
-      destroy: () => this.destroy(),
       liquidityInfoContext: [...liquidityInfoContextArr]
     }
 
@@ -202,7 +201,6 @@ export class UniswapMyLiquidityFactory {
       lpTokens: liquidityInfo.lpTokens,
       poolShares: liquidityInfo.poolShares,
       blockTimestampLast: liquidityInfo.blockTimestampLast,
-      quoteChanged$: this._quoteChanged$.get(liquidityInfo.pairAddress)!
     };
   }
 
@@ -238,7 +236,7 @@ export class UniswapMyLiquidityFactory {
     const cachedAddresses = this._currentLiquidityInfoContext?.liquidityInfoContext.map((_context) => _context.pairAddress) ?? [];
     const liquidityInfo = await this._uniswapRouterFactory.getPairLiquidityInfo(cachedAddresses);
 
-    this._quoteChanged$.forEach(async (value, pairAddressKey) => {
+    this.quoteChanged$.forEach(async (value, pairAddressKey) => {
       const currLiquidityInfoContextSingle = this._currentLiquidityInfoContext?.liquidityInfoContext.find((_info) => {
         return _info.pairAddress === pairAddressKey;
       });

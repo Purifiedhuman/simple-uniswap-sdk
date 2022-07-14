@@ -1,4 +1,3 @@
-import { Observable as UniswapStream } from 'rxjs';
 import { UniswapVersion } from '../../../enums/uniswap-version';
 import { RouteQuote } from '../../router/models/route-quote';
 import { Token } from '../../token/models/token';
@@ -30,6 +29,4 @@ export interface TradeContext {
   toBalance: string;
   transaction: Transaction;
   gasPriceEstimatedBy: string | undefined;
-  quoteChanged$: UniswapStream<TradeContext>;
-  destroy: () => void;
 }

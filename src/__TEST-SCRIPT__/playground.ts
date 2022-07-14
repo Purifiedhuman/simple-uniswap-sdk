@@ -60,9 +60,7 @@ const routeTest = async () => {
   const suppliedPairs = await uniswapLiquidityFactory.findSuppliedPairs();
   const suppliedPairsInfo = await uniswapLiquidityFactory.getPairsLiquidityInfo(suppliedPairs);
 
-  suppliedPairsInfo.liquidityInfoContext[0].quoteChanged$?.subscribe((_context) => {
-    console.log(_context);
-  })
+  console.log(suppliedPairsInfo);
 
   // console.log(suppliedPairsInfo[0]);
 

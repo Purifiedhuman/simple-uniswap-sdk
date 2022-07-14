@@ -51,7 +51,7 @@ export class UniswapSwapFactory {
 
   private _watchingBlocks = false;
   private _currentTradeContext: CurrentTradeContext | undefined;
-  private _quoteChanged$: Subject<TradeContext> = new Subject<TradeContext>();
+  public quoteChanged$: Subject<TradeContext> = new Subject<TradeContext>();
 
   constructor(
     private _coinGecko: CoinGecko,
@@ -145,8 +145,8 @@ export class UniswapSwapFactory {
    * Destroy the trade instance watchers + subscriptions
    */
   public destroy(): void {
-    for (let i = 0; i < this._quoteChanged$.observers.length; i++) {
-      this._quoteChanged$.observers[i].complete();
+    for (let i = 0; i < this.quoteChanged$.observers.length; i++) {
+      this.quoteChanged$.observers[i].complete();
     }
     this.unwatchTradePrice();
   }
@@ -368,9 +368,7 @@ export class UniswapSwapFactory {
       },
       transaction: bestRouteQuote.transaction,
       gasPriceEstimatedBy: bestRouteQuote.gasPriceEstimatedBy,
-      allTriedRoutesQuotes: bestRouteQuotes.triedRoutesQuote,
-      quoteChanged$: this._quoteChanged$,
-      destroy: () => this.destroy(),
+      allTriedRoutesQuotes: bestRouteQuotes.triedRoutesQuote
     };
 
     return tradeContext;
@@ -434,9 +432,7 @@ export class UniswapSwapFactory {
       },
       transaction: bestRouteQuote.transaction,
       gasPriceEstimatedBy: bestRouteQuote.gasPriceEstimatedBy,
-      allTriedRoutesQuotes: bestRouteQuotes.triedRoutesQuote,
-      quoteChanged$: this._quoteChanged$,
-      destroy: () => this.destroy(),
+      allTriedRoutesQuotes: bestRouteQuotes.triedRoutesQuote
     };
 
     return tradeContext;
@@ -500,9 +496,7 @@ export class UniswapSwapFactory {
       },
       transaction: bestRouteQuote.transaction,
       gasPriceEstimatedBy: bestRouteQuote.gasPriceEstimatedBy,
-      allTriedRoutesQuotes: bestRouteQuotes.triedRoutesQuote,
-      quoteChanged$: this._quoteChanged$,
-      destroy: () => this.destroy(),
+      allTriedRoutesQuotes: bestRouteQuotes.triedRoutesQuote
     };
 
     return tradeContext;
@@ -551,7 +545,7 @@ export class UniswapSwapFactory {
    * Handle new block for the trade price moving automatically emitting the stream if it changes
    */
   private async handleNewBlock(): Promise<void> {
-    if (this._quoteChanged$.observers.length > 0 && this._currentTradeContext) {
+    if (this.quoteChanged$.observers.length > 0 && this._currentTradeContext) {
       const trade = await this.executeTradePath(
         new BigNumber(this._currentTradeContext.baseConvertRequest),
         this._currentTradeContext.quoteDirection
@@ -575,7 +569,7 @@ export class UniswapSwapFactory {
             this._uniswapRouterFactory.generateTradeDeadlineUnixTime()
         ) {
           this._currentTradeContext = this.buildCurrentTradeContext(trade);
-          this._quoteChanged$.next(trade);
+          this.quoteChanged$.next(trade);
         }
       }
     }

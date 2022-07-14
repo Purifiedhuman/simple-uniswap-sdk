@@ -1,4 +1,3 @@
-import { Observable as UniswapStream } from 'rxjs';
 import { UniswapVersion } from '../../../enums/uniswap-version';
 import { Token } from '../../token/models/token';
 import { TradeDirection } from './trade-direction';
@@ -31,6 +30,4 @@ export interface LiquidityTradeContext {
   poolShare: string;
   transaction: Transaction;
   lpBalance: string;
-  quoteChanged$: UniswapStream<LiquidityTradeContext>;
-  destroy: () => void;
 }

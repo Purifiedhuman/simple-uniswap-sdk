@@ -47,7 +47,7 @@ export class UniswapAddLiquidityFactory {
 
   private _watchingBlocks = false;
   private _currentLiquidityTradeContext: CurrentLiquidityTradeContext | undefined;
-  private _quoteChanged$: Subject<LiquidityTradeContext> = new Subject<LiquidityTradeContext>();
+  public quoteChanged$: Subject<LiquidityTradeContext> = new Subject<LiquidityTradeContext>();
 
   constructor(
     private _coinGecko: CoinGecko,
@@ -140,8 +140,8 @@ export class UniswapAddLiquidityFactory {
    * Destroy the trade instance watchers + subscriptions
    */
   public destroy(): void {
-    for (let i = 0; i < this._quoteChanged$.observers.length; i++) {
-      this._quoteChanged$.observers[i].complete();
+    for (let i = 0; i < this.quoteChanged$.observers.length; i++) {
+      this.quoteChanged$.observers[i].complete();
     }
 
     this.unwatchTradePrice();
@@ -365,8 +365,6 @@ export class UniswapAddLiquidityFactory {
       poolShare: liquidityQuotes.poolShares,
       transaction: liquidityQuotes.transaction,
       lpBalance: liquidityQuotes.lpBalance,
-      quoteChanged$: this._quoteChanged$,
-      destroy: () => this.destroy(),
     };
 
     return tradeContext;
@@ -415,7 +413,7 @@ export class UniswapAddLiquidityFactory {
    * Handle new block for the trade price moving automatically emitting the stream if it changes
    */
   private async handleNewBlock(): Promise<void> {
-    if (this._quoteChanged$.observers.length > 0 && this._currentLiquidityTradeContext) {
+    if (this.quoteChanged$.observers.length > 0 && this._currentLiquidityTradeContext) {
       const trade = await this.executeTradePath(
         new BigNumber(this._currentLiquidityTradeContext.baseConvertRequest),
         this._currentLiquidityTradeContext.quoteDirection,
@@ -437,7 +435,7 @@ export class UniswapAddLiquidityFactory {
           this._uniswapRouterFactory.generateTradeDeadlineUnixTime()
         ) {
           this._currentLiquidityTradeContext = this.buildCurrentTradeContext(trade);
-          this._quoteChanged$.next(trade);
+          this.quoteChanged$.next(trade);
         }
       }
     }
