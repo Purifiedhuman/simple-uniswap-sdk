@@ -37,7 +37,7 @@ export class UniswapMyLiquidityFactory {
 
   private _watchingBlocks = false;
   private _currentLiquidityInfoContext: LiquidityInfoContext | undefined;
-  private quoteChanged$: Map<string, Subject<LiquidityInfoContextSingle>> = new Map();
+  public quoteChanged$: Map<string, Subject<LiquidityInfoContextSingle>> = new Map();
 
   constructor(
     private _coinGecko: CoinGecko,
