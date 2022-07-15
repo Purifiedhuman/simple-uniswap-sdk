@@ -26,7 +26,7 @@ import { TradeDirection } from '../../pair/models/trade-direction';
 import { Transaction } from '../../pair/models/transaction';
 import { UniswapPairFactoryContext } from '../../pair/models/uniswap-pair-factory-context';
 
-export class UniswapSwapFactory {
+export class UniswapSwap {
   private _fromTokenFactory = new TokenFactory(
     this._uniswapPairFactoryContext.fromToken.contractAddress,
     this._uniswapPairFactoryContext.ethersProvider,

@@ -1,36 +1,18 @@
 import { Subject } from 'rxjs';
 import { CoinGecko } from '../../../coin-gecko';
-import { Constants } from '../../../common/constants';
+import { ChainId } from '../../../enums/chain-id';
 import { UniswapVersion } from '../../../enums/uniswap-version';
-import { uniswapContracts } from '../../../uniswap-contract-context/get-uniswap-contracts';
+import { LiquidityInfoContext, LiquidityInfoContextSingle } from '../../pair/models/liquidity-info-context';
 import { LiquidityInfo } from '../../router/models/liquidity-info';
 import { UniswapRouterFactory } from '../../router/uniswap-router.factory';
-import { AllowanceAndBalanceOf } from '../../token/models/allowance-balance-of';
-import { Token } from '../../token/models/token';
-import { TokenFactory } from '../../token/token.factory';
-import { LiquidityInfoContext, LiquidityInfoContextSingle } from '../../pair/models/liquidity-info-context';
-import { Transaction } from '../../pair/models/transaction';
-import { UniswapPairFactoryContext } from '../../pair/models/uniswap-pair-factory-context';
+import { UniswapMyPairFactoryContext } from '../models/uniswap-my-pair-factory-context';
 
-export class UniswapMyLiquidityFactory {
-  private _fromTokenFactory = new TokenFactory(
-    this._uniswapPairFactoryContext.fromToken.contractAddress,
-    this._uniswapPairFactoryContext.ethersProvider,
-    this._uniswapPairFactoryContext.settings.customNetwork,
-    this._uniswapPairFactoryContext.settings.cloneUniswapContractDetails
-  );
-
-  private _toTokenFactory = new TokenFactory(
-    this._uniswapPairFactoryContext.toToken.contractAddress,
-    this._uniswapPairFactoryContext.ethersProvider,
-    this._uniswapPairFactoryContext.settings.customNetwork
-  );
-
+export class UniswapMyLiquidity {
   private _uniswapRouterFactory = new UniswapRouterFactory(
     this._coinGecko,
     this._uniswapPairFactoryContext.ethereumAddress,
-    this._uniswapPairFactoryContext.fromToken,
-    this._uniswapPairFactoryContext.toToken,
+    { chainId: ChainId.MAINNET, contractAddress: '', decimals: 0, name: '', symbol: '' }, //Does not matter
+    { chainId: ChainId.MAINNET, contractAddress: '', decimals: 0, name: '', symbol: '' }, //Does not matter
     this._uniswapPairFactoryContext.settings,
     this._uniswapPairFactoryContext.ethersProvider
   );
@@ -41,22 +23,8 @@ export class UniswapMyLiquidityFactory {
 
   constructor(
     private _coinGecko: CoinGecko,
-    private _uniswapPairFactoryContext: UniswapPairFactoryContext
+    private _uniswapPairFactoryContext: UniswapMyPairFactoryContext
   ) { }
-
-  /**
-   * The to token
-   */
-  public get toToken(): Token {
-    return this._uniswapPairFactoryContext.toToken;
-  }
-
-  /**
-   * The from token
-   */
-  public get fromToken(): Token {
-    return this._uniswapPairFactoryContext.fromToken;
-  }
 
   /**
    * Get the provider url
@@ -120,70 +88,6 @@ export class UniswapMyLiquidityFactory {
     }
 
     return this._currentLiquidityInfoContext;
-  }
-
-  /**
-   * Get the allowance and balance for the from token (erc20 > blah) only
-   */
-  public async getAllowanceAndBalanceOfForFromToken(): Promise<AllowanceAndBalanceOf> {
-    return await this._fromTokenFactory.getAllowanceAndBalanceOf(
-      this._uniswapPairFactoryContext.ethereumAddress
-    );
-  }
-
-  /**
-   * Get the allowance and balance for to from token (eth > erc20) only
-   * @param uniswapVersion The uniswap version
-   */
-  public async getAllowanceAndBalanceOfForToToken(): Promise<AllowanceAndBalanceOf> {
-    return await this._toTokenFactory.getAllowanceAndBalanceOf(
-      this._uniswapPairFactoryContext.ethereumAddress
-    );
-  }
-
-  /**
-   * Generate the from token approve data max allowance to move the tokens.
-   * This will return the data for you to send as a transaction
-   * @param uniswapVersion The uniswap version
-   */
-  public async generateApproveMaxAllowanceData(
-    uniswapVersion: UniswapVersion,
-    isFromToken: boolean
-  ): Promise<Transaction> {
-    let data;
-    if (isFromToken) {
-      data = this._fromTokenFactory.generateApproveAllowanceData(
-        uniswapVersion === UniswapVersion.v2
-          ? uniswapContracts.v2.getRouterAddress(
-            this._uniswapPairFactoryContext.settings.cloneUniswapContractDetails
-          )
-          : uniswapContracts.v3.getRouterAddress(
-            this._uniswapPairFactoryContext.settings.cloneUniswapContractDetails
-          ),
-        '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff'
-      );
-    } else {
-      data = this._toTokenFactory.generateApproveAllowanceData(
-        uniswapVersion === UniswapVersion.v2
-          ? uniswapContracts.v2.getRouterAddress(
-            this._uniswapPairFactoryContext.settings.cloneUniswapContractDetails
-          )
-          : uniswapContracts.v3.getRouterAddress(
-            this._uniswapPairFactoryContext.settings.cloneUniswapContractDetails
-          ),
-        '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff'
-      );
-    }
-
-
-    return {
-      to: isFromToken
-        ? this.fromToken.contractAddress
-        : this.toToken.contractAddress,
-      from: this._uniswapPairFactoryContext.ethereumAddress,
-      data,
-      value: Constants.EMPTY_HEX_STRING,
-    };
   }
 
   /**

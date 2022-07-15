@@ -20,18 +20,18 @@ import { CurrentLiquidityTradeContext } from '../../pair/models/current-liquidit
 import { LiquidityTradeContext } from '../../pair/models/liquidity-trade-context';
 import { TradeDirection } from '../../pair/models/trade-direction';
 import { Transaction } from '../../pair/models/transaction';
-import { UniswapPairFactoryContext } from '../../pair/models/uniswap-pair-factory-context';
+import { UniswapAddRmPairFactoryContexts } from '../models/uniswap-add-rm-pair-factory-context';
 
-export class UniswapAddLiquidityFactory {
+export class UniswapAddLiquidity {
   private _fromTokenFactory = new TokenFactory(
-    this._uniswapPairFactoryContext.fromToken.contractAddress,
+    this._uniswapPairFactoryContext.tokenA.contractAddress,
     this._uniswapPairFactoryContext.ethersProvider,
     this._uniswapPairFactoryContext.settings.customNetwork,
     this._uniswapPairFactoryContext.settings.cloneUniswapContractDetails
   );
 
   private _toTokenFactory = new TokenFactory(
-    this._uniswapPairFactoryContext.toToken.contractAddress,
+    this._uniswapPairFactoryContext.tokenB.contractAddress,
     this._uniswapPairFactoryContext.ethersProvider,
     this._uniswapPairFactoryContext.settings.customNetwork
   );
@@ -39,8 +39,8 @@ export class UniswapAddLiquidityFactory {
   private _uniswapRouterFactory = new UniswapRouterFactory(
     this._coinGecko,
     this._uniswapPairFactoryContext.ethereumAddress,
-    this._uniswapPairFactoryContext.fromToken,
-    this._uniswapPairFactoryContext.toToken,
+    this._uniswapPairFactoryContext.tokenA,
+    this._uniswapPairFactoryContext.tokenB,
     this._uniswapPairFactoryContext.settings,
     this._uniswapPairFactoryContext.ethersProvider
   );
@@ -51,21 +51,21 @@ export class UniswapAddLiquidityFactory {
 
   constructor(
     private _coinGecko: CoinGecko,
-    private _uniswapPairFactoryContext: UniswapPairFactoryContext
+    private _uniswapPairFactoryContext: UniswapAddRmPairFactoryContexts
   ) { }
 
   /**
    * The to token
    */
-  public get toToken(): Token {
-    return this._uniswapPairFactoryContext.toToken;
+  public get tokenB(): Token {
+    return this._uniswapPairFactoryContext.tokenB;
   }
 
   /**
    * The from token
    */
-  public get fromToken(): Token {
-    return this._uniswapPairFactoryContext.fromToken;
+  public get tokenA(): Token {
+    return this._uniswapPairFactoryContext.tokenA;
   }
 
   /**
@@ -90,7 +90,7 @@ export class UniswapAddLiquidityFactory {
     );
 
     return new BigNumber(erc20BalanceContext)
-      .shiftedBy(this.fromToken.decimals * -1)
+      .shiftedBy(this.tokenA.decimals * -1)
       .toFixed();
   }
 
@@ -109,7 +109,7 @@ export class UniswapAddLiquidityFactory {
     );
 
     return new BigNumber(erc20BalanceContext)
-      .shiftedBy(this.toToken.decimals * -1)
+      .shiftedBy(this.tokenB.decimals * -1)
       .toFixed();
   }
 
@@ -225,8 +225,8 @@ export class UniswapAddLiquidityFactory {
   }
 
   /**
-   * Get the allowance for the amount which can be moved from the `fromToken`
-   * on the users behalf. Only valid when the `fromToken` is a ERC20 token.
+   * Get the allowance for the amount which can be moved from the `tokenA`
+   * on the users behalf. Only valid when the `tokenA` is a ERC20 token.
    * @param uniswapVersion The uniswap version
    */
   public async allowance(uniswapVersion: UniswapVersion): Promise<string> {
@@ -279,8 +279,8 @@ export class UniswapAddLiquidityFactory {
 
     return {
       to: isFromToken
-        ? this.fromToken.contractAddress
-        : this.toToken.contractAddress,
+        ? this.tokenA.contractAddress
+        : this.tokenB.contractAddress,
       from: this._uniswapPairFactoryContext.ethereumAddress,
       data,
       value: Constants.EMPTY_HEX_STRING,
@@ -351,12 +351,12 @@ export class UniswapAddLiquidityFactory {
           false
         )
         : undefined,
-      tokenA: this.fromToken,
+      tokenA: this.tokenA,
       tokenABalance: {
         hasEnough: liquidityQuotes.fromHasEnoughBalance,
         balance: liquidityQuotes.fromBalance,
       },
-      tokenB: this.toToken,
+      tokenB: this.tokenB,
       tokenBBalance: {
         hasEnough: liquidityQuotes.toHasEnoughBalance,
         balance: liquidityQuotes.toBalance,
@@ -377,8 +377,8 @@ export class UniswapAddLiquidityFactory {
     const network = this._uniswapPairFactoryContext.ethersProvider.network();
     return getTradePath(
       network.chainId,
-      this.fromToken,
-      this.toToken,
+      this.tokenA,
+      this.tokenB,
       this._uniswapPairFactoryContext.settings.customNetwork
         ?.nativeWrappedTokenInfo
     );

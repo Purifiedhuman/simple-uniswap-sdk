@@ -1,6 +1,6 @@
 import { UniswapVersion } from '../enums/uniswap-version';
 import { UniswapPairSettings } from '../factories/pair/models/uniswap-pair-settings';
-import { UniswapMain } from '../factories/main-logics/version-1/uniswap-main';
+import { UniswapMyLiquidityFactory } from '../factories/main-logics/uniswap-my-liquidity/uniswap-my-liquidity.factory';
 
 // WBTC - 0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599
 // FUN - 0x419D0d8BdD9aF5e606Ae2232ed285Aff190E711b
@@ -12,13 +12,11 @@ import { UniswapMain } from '../factories/main-logics/version-1/uniswap-main';
 
 const routeTest = async () => {
 
-  const fromTokenContractAddress = '0xC285cc080a40aE0Fb4Ae198b2FB5cbdb4A7F3E66'; //0x8a1aaE68BA6DDbfaDe8359f18321e87d8ab8Fae9
-  const toTokenContractAddress = '0xa6673B7c3B6A30DA1B67e62dD4A0319bFE755Edb'; //0xC285cc080a40aE0Fb4Ae198b2FB5cbdb4A7F3E66
+  // const fromTokenContractAddress = '0xC285cc080a40aE0Fb4Ae198b2FB5cbdb4A7F3E66'; //0x8a1aaE68BA6DDbfaDe8359f18321e87d8ab8Fae9
+  // const toTokenContractAddress = '0xa6673B7c3B6A30DA1B67e62dD4A0319bFE755Edb'; //0xC285cc080a40aE0Fb4Ae198b2FB5cbdb4A7F3E66
   const ethereumAddress = '0xa207aDd901BF900C81Feb04D33968a0132bD68DA';
 
-  const uniswapMain = new UniswapMain({
-    fromTokenContractAddress,
-    toTokenContractAddress,
+  const uniswapMain = new UniswapMyLiquidityFactory({
     ethereumAddress,
     chainId: 80001,
     providerUrl: 'https://polygon-mumbai.g.alchemy.com/v2/LOsCmKKqyJojD5OsLyqlAFVquaysK2Wb',

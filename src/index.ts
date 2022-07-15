@@ -25,10 +25,11 @@ export {
   UniswapPairContextForProviderUrl,
 } from './factories/pair/models/uniswap-pair-contexts';
 export { UniswapPairSettings } from './factories/pair/models/uniswap-pair-settings';
-export { UniswapMain } from './factories/main-logics/version-1/uniswap-main';
-export { UniswapSwapFactory } from './factories/main-logics/version-1/uniswap-swap.factory';
-export { UniswapAddLiquidityFactory } from './factories/main-logics/version-1/uniswap-add-liquidity.factory';
-export { UniswapMyLiquidityFactory } from './factories/main-logics/version-1/uniswap-my-liquidity.factory';
+export { UniswapSwapFactory } from './factories/main-logics/uniswap-swap/uniswap-swap.factory';
+export { UniswapSwap } from './factories/main-logics/uniswap-swap/uniswap-swap';
+export { UniswapAddRmLiquidityFactory } from './factories/main-logics/uniswap-add-remove-liquidity/uniswap-add-rm-liquidity.factory';
+export { UniswapAddLiquidity } from './factories/main-logics/uniswap-add-remove-liquidity/uniswap-add-liquidity';
+export { UniswapMyLiquidity } from './factories/main-logics/uniswap-my-liquidity/uniswap-my-liquidity';
 export { UniswapPairContractFactoryPublicV2 } from './factories/pair/v2/uniswap-pair-contract.factory.public.v2';
 export { RouteQuote } from './factories/router/models/route-quote';
 export { UniswapRouterContractFactoryV2Public } from './factories/router/v2/uniswap-router-contract.factory.public.v2';
