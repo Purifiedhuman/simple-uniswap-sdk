@@ -1,26 +1,26 @@
 import BigNumber from 'bignumber.js';
 import { Subject } from 'rxjs';
-import { CoinGecko } from '../../coin-gecko';
-import { Constants } from '../../common/constants';
-import { ErrorCodes } from '../../common/errors/error-codes';
-import { UniswapError } from '../../common/errors/uniswap-error';
-import { deepClone } from '../../common/utils/deep-clone';
-import { getTradePath } from '../../common/utils/trade-path';
-import { TradePath } from '../../enums/trade-path';
-import { UniswapVersion } from '../../enums/uniswap-version';
-import { uniswapContracts } from '../../uniswap-contract-context/get-uniswap-contracts';
-import { AllPossibleRoutes } from '../router/models/all-possible-routes';
-import { BestRouteQuotes } from '../router/models/best-route-quotes';
-import { RouteQuote } from '../router/models/route-quote';
-import { UniswapRouterFactory } from '../router/uniswap-router.factory';
-import { AllowanceAndBalanceOf } from '../token/models/allowance-balance-of';
-import { Token } from '../token/models/token';
-import { TokenFactory } from '../token/token.factory';
-import { CurrentLiquidityTradeContext } from './models/current-liquidity-trade-context';
-import { LiquidityTradeContext } from './models/liquidity-trade-context';
-import { TradeDirection } from './models/trade-direction';
-import { Transaction } from './models/transaction';
-import { UniswapPairFactoryContext } from './models/uniswap-pair-factory-context';
+import { CoinGecko } from '../../../coin-gecko';
+import { Constants } from '../../../common/constants';
+import { ErrorCodes } from '../../../common/errors/error-codes';
+import { UniswapError } from '../../../common/errors/uniswap-error';
+import { deepClone } from '../../../common/utils/deep-clone';
+import { getTradePath } from '../../../common/utils/trade-path';
+import { TradePath } from '../../../enums/trade-path';
+import { UniswapVersion } from '../../../enums/uniswap-version';
+import { uniswapContracts } from '../../../uniswap-contract-context/get-uniswap-contracts';
+import { AllPossibleRoutes } from '../../router/models/all-possible-routes';
+import { BestRouteQuotes } from '../../router/models/best-route-quotes';
+import { RouteQuote } from '../../router/models/route-quote';
+import { UniswapRouterFactory } from '../../router/uniswap-router.factory';
+import { AllowanceAndBalanceOf } from '../../token/models/allowance-balance-of';
+import { Token } from '../../token/models/token';
+import { TokenFactory } from '../../token/token.factory';
+import { CurrentLiquidityTradeContext } from '../../pair/models/current-liquidity-trade-context';
+import { LiquidityTradeContext } from '../../pair/models/liquidity-trade-context';
+import { TradeDirection } from '../../pair/models/trade-direction';
+import { Transaction } from '../../pair/models/transaction';
+import { UniswapPairFactoryContext } from '../../pair/models/uniswap-pair-factory-context';
 
 export class UniswapAddLiquidityFactory {
   private _fromTokenFactory = new TokenFactory(

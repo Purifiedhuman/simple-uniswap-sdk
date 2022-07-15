@@ -1,18 +1,18 @@
-import { CoinGecko } from '../../coin-gecko';
-import { ErrorCodes } from '../../common/errors/error-codes';
-import { UniswapError } from '../../common/errors/uniswap-error';
-import { getAddress } from '../../common/utils/get-address';
-import { isAddress } from '../../common/utils/is-address';
-import { ChainId } from '../../enums/chain-id';
-import { EthersProvider } from '../../ethers-provider';
-import { TokensFactory } from '../token/tokens.factory';
+import { CoinGecko } from '../../../coin-gecko';
+import { ErrorCodes } from '../../../common/errors/error-codes';
+import { UniswapError } from '../../../common/errors/uniswap-error';
+import { getAddress } from '../../../common/utils/get-address';
+import { isAddress } from '../../../common/utils/is-address';
+import { ChainId } from '../../../enums/chain-id';
+import { EthersProvider } from '../../../ethers-provider';
+import { TokensFactory } from '../../token/tokens.factory';
 import {
   UniswapPairContextForChainId,
   UniswapPairContextForEthereumProvider,
   UniswapPairContextForProviderUrl,
-} from './models/uniswap-pair-contexts';
-import { UniswapPairFactoryContext } from './models/uniswap-pair-factory-context';
-import { UniswapPairSettings } from './models/uniswap-pair-settings';
+} from '../../pair/models/uniswap-pair-contexts';
+import { UniswapPairFactoryContext } from '../../pair/models/uniswap-pair-factory-context';
+import { UniswapPairSettings } from '../../pair/models/uniswap-pair-settings';
 import { UniswapAddLiquidityFactory } from './uniswap-add-liquidity.factory';
 import { UniswapMyLiquidityFactory } from './uniswap-my-liquidity.factory';
 import { UniswapSwapFactory } from './uniswap-swap.factory';
