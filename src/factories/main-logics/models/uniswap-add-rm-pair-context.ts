@@ -2,6 +2,7 @@ import { ChainId } from '../../../enums/chain-id';
 import { UniswapPairSettings } from '../../pair/models/uniswap-pair-settings';
 
 interface UniswapAddRmPairContextBase {
+  pairContractAddress?: string;
   tokenATokenContractAddress: string;
   tokenBTokenContractAddress: string;
   ethereumAddress: string;

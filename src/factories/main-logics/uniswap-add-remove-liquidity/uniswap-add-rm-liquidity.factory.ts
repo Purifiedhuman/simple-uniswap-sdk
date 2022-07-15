@@ -12,6 +12,7 @@ import {
   UniswapAddRmPairContextBaseForEthereumProvider, UniswapAddRmPairContextV2ForChainId, UniswapAddRmPairContextV2ForProviderUrl
 } from '../models/uniswap-add-rm-pair-context';
 import { UniswapAddLiquidity } from './uniswap-add-liquidity';
+import { UniswapRmLiquidity } from './uniswap-rm-liquidity';
 
 export class UniswapAddRmLiquidityFactory {
   private _ethersProvider: EthersProvider;
@@ -59,6 +60,15 @@ export class UniswapAddRmLiquidityFactory {
       this._uniswapPairContext.tokenBTokenContractAddress,
       true
     );
+
+    if(!!this._uniswapPairContext.pairContractAddress){
+      if (!isAddress(this._uniswapPairContext.pairContractAddress)) {
+        throw new UniswapError(
+          '`pairContractAddress` is not a valid contract address',
+          ErrorCodes.pairContractAddressNotValid
+        );
+      }
+    }
 
     if (!this._uniswapPairContext.ethereumAddress) {
       throw new UniswapError(
@@ -164,4 +174,52 @@ export class UniswapAddRmLiquidityFactory {
 
     return new UniswapAddLiquidity(new CoinGecko(), uniswapFactoryContext);
   }
+
+    /**
+   * Create factory to be able to call remove liquidity methods on the 2 tokens
+   */
+     public async createRemoveLiquidityFactory(): Promise<UniswapRmLiquidity> {
+      if (this._uniswapPairContext.settings?.customNetwork === undefined) {
+        const chainId = this._ethersProvider.network().chainId;
+        if (
+          chainId !== ChainId.MAINNET &&
+          chainId !== ChainId.ROPSTEN &&
+          chainId !== ChainId.RINKEBY &&
+          chainId !== ChainId.GÖRLI &&
+          chainId !== ChainId.KOVAN
+        ) {
+          throw new UniswapError(
+            `ChainId - ${chainId} is not supported. This lib only supports mainnet(1), ropsten(4), kovan(42), rinkeby(4), and görli(5)`,
+            ErrorCodes.chainIdNotSupported
+          );
+        }
+      }
+  
+      const tokensFactory = new TokensFactory(
+        this._ethersProvider,
+        this._uniswapPairContext.settings?.customNetwork
+      );
+      const tokens = await tokensFactory.getTokens([
+        this._uniswapPairContext.tokenATokenContractAddress,
+        this._uniswapPairContext.tokenBTokenContractAddress,
+      ]);
+  
+      const uniswapFactoryContext: UniswapAddRmPairFactoryContexts = {
+        tokenA: tokens.find(
+          (t) =>
+            t.contractAddress.toLowerCase() ===
+            this._uniswapPairContext.tokenATokenContractAddress.toLowerCase()
+        )!,
+        tokenB: tokens.find(
+          (t) =>
+            t.contractAddress.toLowerCase() ===
+            this._uniswapPairContext.tokenBTokenContractAddress.toLowerCase()
+        )!,
+        ethereumAddress: this._uniswapPairContext.ethereumAddress,
+        settings: this._uniswapPairContext.settings || new UniswapPairSettings(),
+        ethersProvider: this._ethersProvider,
+      };
+  
+      return new UniswapRmLiquidity(new CoinGecko(), uniswapFactoryContext);
+    }
 }
