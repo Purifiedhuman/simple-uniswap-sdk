@@ -2,7 +2,7 @@ import { UniswapVersion } from '../../../enums/uniswap-version';
 import { TradeDirection } from '../../pair/models/trade-direction';
 import { Transaction } from '../../pair/models/transaction';
 
-export interface LiquidityQuote {
+export interface AddLiquidityQuote {
   isFirstSupplier: boolean,
   baseConvertRequest: string;
   expectedConvertQuote: string;

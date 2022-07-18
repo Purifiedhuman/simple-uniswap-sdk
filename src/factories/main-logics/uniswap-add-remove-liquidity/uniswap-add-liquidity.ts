@@ -320,7 +320,7 @@ export class UniswapAddLiquidity {
     direction: TradeDirection,
     convertAmount?: BigNumber,
   ): Promise<LiquidityTradeContext> {
-    const liquidityQuotes = await this._routes.getLiquidityQuote(
+    const liquidityQuotes = await this._routes.getAddLiquidityQuote(
       baseConvertRequest,
       direction,
       convertAmount,

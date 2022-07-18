@@ -51,7 +51,7 @@ import { RouterDirection } from './enums/router-direction';
 import { AllPossibleRoutes } from './models/all-possible-routes';
 import { BestRouteQuotes } from './models/best-route-quotes';
 import { LiquidityInfo } from './models/liquidity-info';
-import { LiquidityQuote } from './models/liquidity-quote';
+import { AddLiquidityQuote } from './models/add-liquidity-quote';
 import { RouteContext } from './models/route-context';
 import { RouteQuote } from './models/route-quote';
 import { RouteQuoteTradeContext } from './models/route-quote-trade-context';
@@ -63,6 +63,7 @@ import {
   percentToFeeAmount,
 } from './v3/enums/fee-amount-v3';
 import { UniswapRouterContractFactoryV3 } from './v3/uniswap-router-contract.factory.v3';
+import { RmLiquidityQuote } from './models/rm-liquidity-quote';
 
 export class UniswapRouterFactory {
   private _multicall = new CustomMulticall(
@@ -785,15 +786,15 @@ export class UniswapRouterFactory {
 
 
   /**
-   * Get liquidity quote for the amountToTrade
+   * Get add liquidity quote for the amountToTrade
    * @param etherAmountToTradeInBigNumber The amount to trade
    * @param direction The direction you want to get the quote from
    */
-  public async getLiquidityQuote(
+  public async getAddLiquidityQuote(
     etherAmountToTradeInBigNumber: BigNumber,
     direction: TradeDirection,
     etherDirectConvertAmount = new BigNumber(0),
-  ): Promise<LiquidityQuote> {
+  ): Promise<AddLiquidityQuote> {
     const weiTradeAmountInHex = this.formatAmountToTrade(etherAmountToTradeInBigNumber, direction);
 
     const routes = await this.getAllPossibleRoutes(true);
@@ -818,32 +819,32 @@ export class UniswapRouterFactory {
           abi: UniswapContractContextV2.pairAbi,
           calls: [
             {
-              reference: `token0-${i}`,
+              reference: `token0`,
               methodName: 'token0',
               methodParameters: [],
             },
             {
-              reference: `token1-${i}`,
+              reference: `token1`,
               methodName: 'token1',
               methodParameters: [],
             },
             {
-              reference: `getReserves-${i}`,
+              reference: `getReserves`,
               methodName: 'getReserves',
               methodParameters: [],
             },
             {
-              reference: `totalSupply-${i}`,
+              reference: `totalSupply`,
               methodName: 'totalSupply',
               methodParameters: [],
             },
             {
-              reference: `balanceOf-${i}`,
+              reference: `balanceOf`,
               methodName: 'balanceOf',
               methodParameters: [this._ethereumAddress],
             },
             {
-              reference: `decimals-${i}`,
+              reference: `decimals`,
               methodName: 'decimals',
               methodParameters: [],
             }
@@ -877,24 +878,24 @@ export class UniswapRouterFactory {
           }
 
           switch (callReturnContext.reference) {
-            case `token0-0`:
+            case `token0`:
               token0Address = callReturnContext.returnValues[0];
               break;
-            case `token1-0`:
+            case `token1`:
               token1Address = callReturnContext.returnValues[0];
               break;
-            case `getReserves-0`:
+            case `getReserves`:
               weiToken0ReserveInHex = callReturnContext.returnValues[0].hex;
               weiToken1ReserveInHex = callReturnContext.returnValues[1].hex;
               // blockTimestampLast = callReturnContext.returnValues[2];
               break;
-            case `totalSupply-0`:
+            case `totalSupply`:
               weiTotalSupplyInHex = callReturnContext.returnValues[0].hex;
               break;
-            case `balanceOf-0`:
+            case `balanceOf`:
               weiBalanceOfInHex = callReturnContext.returnValues[0].hex;
               break;
-            case `decimals-0`:
+            case `decimals`:
               lpTokenDecimals = callReturnContext.returnValues[0];
               break;
           }
@@ -1101,6 +1102,176 @@ export class UniswapRouterFactory {
       lpTokensToReceive: lpTokens.estimatedLPTokens,
       poolShares: lpTokens.estimatedPoolShares
     }
+  }
+
+  /**
+   * Get remove liquidity quote
+   */
+  public async getRmLiquidityQuote(): Promise<RmLiquidityQuote> {
+    const routes = await this.getAllPossibleRoutes(true);
+
+    const contractCallContext: ContractCallContext<RouteContext[]>[] = [];
+    let pairAddress = '';
+    let lpTokenDecimals = 18; //default
+
+    if (this._settings.uniswapVersions.includes(UniswapVersion.v2)) {
+
+      //directOverride ensure tokenA and tokenB direct pair only (0 or 1 in length)
+      for (let i = 0; i < routes.v2.length; i++) {
+        const routeCombo = routes.v2[i].route.map((c) => {
+          return removeEthFromContractAddress(c.contractAddress);
+        });
+
+        pairAddress = await this._uniswapContractFactoryV2.getPair(routeCombo[0], routeCombo[1]);
+
+        contractCallContext.push({
+          reference: `${UniswapVersion.v2}-pair`,
+          contractAddress: pairAddress,
+          abi: UniswapContractContextV2.pairAbi,
+          calls: [
+            {
+              reference: `token0`,
+              methodName: 'token0',
+              methodParameters: [],
+            },
+            {
+              reference: `token1`,
+              methodName: 'token1',
+              methodParameters: [],
+            },
+            {
+              reference: `getReserves`,
+              methodName: 'getReserves',
+              methodParameters: [],
+            },
+            {
+              reference: `totalSupply`,
+              methodName: 'totalSupply',
+              methodParameters: [],
+            },
+            {
+              reference: `balanceOf`,
+              methodName: 'balanceOf',
+              methodParameters: [this._ethereumAddress],
+            },
+            {
+              reference: `decimals`,
+              methodName: 'decimals',
+              methodParameters: [],
+            }
+          ],
+          context: routes.v2,
+        });
+      }
+    }
+
+    const contractCallResults = await this._multicall.call(contractCallContext);
+
+    let isPairReversed = false;
+    let invalidPair = true;
+    let token0Address: null | string = null;
+    let token1Address: null | string = null;
+    let weiToken0ReserveInHex: null | string = null;
+    let weiToken1ReserveInHex: null | string = null;
+    let weiTotalSupplyInHex: null | string = null;
+    let weiBalanceOfInHex: null | string = null;
+
+
+    for (const key in contractCallResults.results) {
+      const contractCallReturnContext = contractCallResults.results[key];
+      if (contractCallReturnContext) {
+        for (let i = 0; i < contractCallReturnContext.callsReturnContext.length; i++) {
+          const callReturnContext = contractCallReturnContext.callsReturnContext[i];
+
+          if (!callReturnContext.success) {
+            continue;
+          }
+
+          switch (callReturnContext.reference) {
+            case `token0`:
+              token0Address = callReturnContext.returnValues[0];
+              break;
+            case `token1`:
+              token1Address = callReturnContext.returnValues[0];
+              break;
+            case `getReserves`:
+              weiToken0ReserveInHex = callReturnContext.returnValues[0].hex;
+              weiToken1ReserveInHex = callReturnContext.returnValues[1].hex;
+              // blockTimestampLast = callReturnContext.returnValues[2];
+              break;
+            case `totalSupply`:
+              weiTotalSupplyInHex = callReturnContext.returnValues[0].hex;
+              break;
+            case `balanceOf`:
+              weiBalanceOfInHex = callReturnContext.returnValues[0].hex;
+              break;
+            case `decimals`:
+              lpTokenDecimals = callReturnContext.returnValues[0];
+              break;
+          }
+
+        }
+      }
+    }
+
+    let etherTotalSupply = new BigNumber(0);
+    if (weiToken0ReserveInHex && weiToken1ReserveInHex) {
+      invalidPair = false;
+      etherTotalSupply = formatEther(new BigNumber(weiTotalSupplyInHex ?? 0));
+      if (token0Address === removeEthFromContractAddress(this._fromToken.contractAddress)) {
+        isPairReversed = false;
+      } else if (token0Address === removeEthFromContractAddress(this._toToken.contractAddress)) {
+        isPairReversed = true;
+      }
+    } else {
+      invalidPair = true;
+    }
+
+    if (invalidPair) {
+      //guard condition, exit immediately if pair is invalid
+      return {
+        uniswapVersion: UniswapVersion.v2, //hardcode, no support for v3
+        invalidPair,
+        lpAddress: '',
+        lpTokenBalance: '',
+        poolShare: '',
+        tokenAPerLpToken: '',
+        tokenBPerLpToken: '',
+      };
+    }
+
+    let etherReserve0 = new BigNumber(0);
+    let etherReserve1 = new BigNumber(0);
+
+    const token0Decimals = isPairReversed
+      ? this._toToken.decimals
+      : this._fromToken.decimals;
+
+    const token1Decimals = isPairReversed
+      ? this._fromToken.decimals
+      : this._toToken.decimals;
+
+    etherReserve0 = new BigNumber(weiToken0ReserveInHex ?? 0).shiftedBy(token0Decimals * -1);
+    etherReserve1 = new BigNumber(weiToken1ReserveInHex ?? 0).shiftedBy(token1Decimals * -1);
+    const formattedLpBalance = new BigNumber(weiBalanceOfInHex ?? 0).shiftedBy(lpTokenDecimals * -1).toFixed(lpTokenDecimals);
+
+    const etherTokenAAndTokenBPerLp = this.calculatesTokenAAndTokenBPerLp(
+      etherReserve0,
+      etherReserve1,
+      etherTotalSupply,
+    );
+
+    const poolShare = this.calculatesPoolShare(new BigNumber(formattedLpBalance), etherTotalSupply); 
+
+    return {
+      uniswapVersion: UniswapVersion.v2, //hardcode, no support for v3
+      invalidPair,
+      lpAddress: pairAddress,
+      lpTokenBalance: formattedLpBalance,
+      poolShare: poolShare,
+      tokenAPerLpToken: etherTokenAAndTokenBPerLp.perLpEstimatedToken0,
+      tokenBPerLpToken: etherTokenAAndTokenBPerLp.perLpEstimatedToken1,
+    };
   }
 
   /**
@@ -2046,6 +2217,34 @@ export class UniswapRouterFactory {
     return {
       estimatedLPTokens: liquidity.toFixed(),
       estimatedPoolShares: percentEstimatedPoolShareInBigNumber.isGreaterThan(100) ? '100' : percentEstimatedPoolShareInBigNumber.toFixed(2)
+    };
+  }
+
+  /**
+   * Calculates TokenA and TokenB Ratio for 1 LP Token
+   * @param reserve0 The ether reserve0 in PairContract
+   * @param reserve1 The ether reserve0 in PairContract
+   * @param totalSupply The totalSupply in PairContract
+   */
+  private calculatesTokenAAndTokenBPerLp(
+    etherReserve0: BigNumber,
+    etherReserve1: BigNumber,
+    etherTotalSupply: BigNumber,
+  ): {
+    perLpEstimatedToken0: string;
+    perLpEstimatedToken1: string;
+  } {
+    let perLpEstimatedToken0 = new BigNumber(0);
+    let perLpEstimatedToken1 = new BigNumber(0);
+
+    perLpEstimatedToken0 = new BigNumber(1).multipliedBy(etherReserve0).div(etherTotalSupply);
+    perLpEstimatedToken1 = new BigNumber(1).multipliedBy(etherReserve1).div(etherTotalSupply);
+
+    console.log(perLpEstimatedToken0.toFixed());
+
+    return {
+      perLpEstimatedToken0: perLpEstimatedToken0.toFixed(),
+      perLpEstimatedToken1: perLpEstimatedToken1.toFixed()
     };
   }
 
