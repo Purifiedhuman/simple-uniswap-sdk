@@ -18,6 +18,7 @@ export { GasSettings } from './factories/pair/models/gas-settings';
 export { TradeContext } from './factories/pair/models/trade-context';
 export { LiquidityTradeContext } from './factories/pair/models/liquidity-trade-context';
 export { LiquidityInfoContext, LiquidityInfoContextSingle } from './factories/pair/models/liquidity-info-context';
+export { UniswapRmLiquidityInfoContext } from './factories/main-logics/models/uniswap-rm-liquidity-info-context';
 export { TradeDirection } from './factories/pair/models/trade-direction';
 export { Transaction } from './factories/pair/models/transaction';
 export {
