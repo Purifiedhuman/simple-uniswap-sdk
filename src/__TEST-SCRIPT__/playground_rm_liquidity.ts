@@ -1,24 +1,14 @@
 import { UniswapVersion } from '../enums/uniswap-version';
 import { UniswapPairSettings } from '../factories/pair/models/uniswap-pair-settings';
 import { UniswapAddRmLiquidityFactory } from '../factories/main-logics/uniswap-add-remove-liquidity/uniswap-add-rm-liquidity.factory';
-
-// WBTC - 0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599
-// FUN - 0x419D0d8BdD9aF5e606Ae2232ed285Aff190E711b
-// REP - 0x1985365e9f78359a9B6AD760e32412f4a445E862
-// WETH - 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2
-// UNI - 0x1f9840a85d5af5bf1d1762f925bdaddc4201f984
-// AAVE - 0x7fc66500c84a76ad7e9c93437bfc5ac33e2ddae9
-// GTC - 0xde30da39c46104798bb5aa3fe8b9e0e1f348163f
+import BigNumber from 'bignumber.js';
 
 const routeTest = async () => {
-
-  // const fromTokenContractAddress = '0xC285cc080a40aE0Fb4Ae198b2FB5cbdb4A7F3E66'; //0x8a1aaE68BA6DDbfaDe8359f18321e87d8ab8Fae9
-  // const toTokenContractAddress = '0xa6673B7c3B6A30DA1B67e62dD4A0319bFE755Edb'; //0xC285cc080a40aE0Fb4Ae198b2FB5cbdb4A7F3E66
   const ethereumAddress = '0xa207aDd901BF900C81Feb04D33968a0132bD68DA';
 
   const uniswapMain = new UniswapAddRmLiquidityFactory({
-    tokenATokenContractAddress: '0xC285cc080a40aE0Fb4Ae198b2FB5cbdb4A7F3E66',
-    tokenBTokenContractAddress: '0x8a1aaE68BA6DDbfaDe8359f18321e87d8ab8Fae9',
+    tokenATokenContractAddress: '0x8a1aaE68BA6DDbfaDe8359f18321e87d8ab8Fae9',
+    tokenBTokenContractAddress: '0xC285cc080a40aE0Fb4Ae198b2FB5cbdb4A7F3E66',
     ethereumAddress,
     chainId: 80001,
     providerUrl: 'https://polygon-mumbai.g.alchemy.com/v2/LOsCmKKqyJojD5OsLyqlAFVquaysK2Wb',
@@ -56,8 +46,12 @@ const routeTest = async () => {
 
   const rmTradeInfo = await uniswapLiquidityFactory.getRmTradeInfo();
 
-  console.log(rmTradeInfo);
+  const transaction = await uniswapLiquidityFactory.buildTransaction(
+    new BigNumber(1), new BigNumber('1.041049287455796477'), new BigNumber('0.976860614806926557')
+  )
 
+  console.log(rmTradeInfo);
+  console.log(transaction);
 
 };
 

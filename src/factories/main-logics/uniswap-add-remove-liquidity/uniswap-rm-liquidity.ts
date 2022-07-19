@@ -1,7 +1,9 @@
+import BigNumber from 'bignumber.js';
 import { Subject } from 'rxjs';
 import { CoinGecko } from '../../../coin-gecko';
 import { deepClone } from '../../../common/utils/deep-clone';
 import { UniswapVersion } from '../../../enums/uniswap-version';
+import { Transaction } from '../../pair/models/transaction';
 import { UniswapRouterFactory } from '../../router/uniswap-router.factory';
 import { Token } from '../../token/models/token';
 import { UniswapAddRmPairFactoryContexts } from '../models/uniswap-add-rm-pair-factory-context';
@@ -73,6 +75,22 @@ export class UniswapRmLiquidity {
     this.watchTradePrice();
 
     return tradeInfo;
+  }
+
+  /**
+   * buildTransaction - build transaction to remove liquidity
+   * @param lpAmountEther The amount you want to remove
+   * @param tokenAAmountEther calculated tokenA amount
+   * @param tokenBAmountEther calculated tokenB amount
+   */
+  public async buildTransaction(
+    lpAmountEther: BigNumber,
+    tokenAAmountEther: BigNumber,
+    tokenBAmountEther: BigNumber,
+  ): Promise<Transaction> {
+    return await this._routes.generateRmLiquidityTransaction(
+      lpAmountEther, tokenAAmountEther, tokenBAmountEther
+    );
   }
 
   /**

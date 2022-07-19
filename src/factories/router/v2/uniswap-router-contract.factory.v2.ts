@@ -103,7 +103,7 @@ export class UniswapRouterContractFactoryV2 {
     deadline: BigNumberish
   ): string {
     return this._uniswapRouterContract.interface.encodeFunctionData(
-      'removeLiquidity',
+      'removeLiquidityETH',
       [token, liquidity, amountTokenMin, amountETHMin, to, deadline]
     );
   }

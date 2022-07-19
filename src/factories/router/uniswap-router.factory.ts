@@ -1170,7 +1170,7 @@ export class UniswapRouterFactory {
     let isPairReversed = false;
     let invalidPair = true;
     let token0Address: null | string = null;
-    let token1Address: null | string = null;
+    // let token1Address: null | string = null;
     let weiToken0ReserveInHex: null | string = null;
     let weiToken1ReserveInHex: null | string = null;
     let weiTotalSupplyInHex: null | string = null;
@@ -1192,7 +1192,7 @@ export class UniswapRouterFactory {
               token0Address = callReturnContext.returnValues[0];
               break;
             case `token1`:
-              token1Address = callReturnContext.returnValues[0];
+              // token1Address = callReturnContext.returnValues[0];
               break;
             case `getReserves`:
               weiToken0ReserveInHex = callReturnContext.returnValues[0].hex;
@@ -1257,11 +1257,13 @@ export class UniswapRouterFactory {
 
     const etherTokenAAndTokenBPerLp = this.calculatesTokenAAndTokenBPerLp(
       etherReserve0,
+      token0Decimals,
       etherReserve1,
+      token1Decimals,
       etherTotalSupply,
     );
 
-    const poolShare = this.calculatesPoolShare(new BigNumber(formattedLpBalance), etherTotalSupply); 
+    const poolShare = this.calculatesPoolShare(new BigNumber(formattedLpBalance), etherTotalSupply);
 
     return {
       uniswapVersion: UniswapVersion.v2, //hardcode, no support for v3
@@ -1269,8 +1271,8 @@ export class UniswapRouterFactory {
       lpAddress: pairAddress,
       lpTokenBalance: formattedLpBalance,
       poolShare: poolShare,
-      tokenAPerLpToken: etherTokenAAndTokenBPerLp.perLpEstimatedToken0,
-      tokenBPerLpToken: etherTokenAAndTokenBPerLp.perLpEstimatedToken1,
+      tokenAPerLpToken: isPairReversed ? etherTokenAAndTokenBPerLp.perLpEstimatedToken1 : etherTokenAAndTokenBPerLp.perLpEstimatedToken0,
+      tokenBPerLpToken: isPairReversed ? etherTokenAAndTokenBPerLp.perLpEstimatedToken0 : etherTokenAAndTokenBPerLp.perLpEstimatedToken1,
     };
   }
 
@@ -1731,11 +1733,209 @@ export class UniswapRouterFactory {
     return this._uniswapRouterContractFactoryV3.multicall(multicallData);
   }
 
+  /** 
+   * generateRmLiquidityData - Retrieve and massage and process ether amounts passed in to wei to generate data
+   * @param lpAmountEther The lpAmount to remove
+   * @param tokenAAmountEther The tokenA amount to remove
+   * @param tokenBAmountEther The tokenB amount to remove
+   */
+  public async generateRmLiquidityTransaction(
+    lpAmountEther: BigNumber,
+    tokenAAmountEther: BigNumber,
+    tokenBAmountEther: BigNumber,
+  ): Promise<Transaction> {
+    const routes = await this.getAllPossibleRoutes(true);
+
+    const contractCallContext: ContractCallContext<RouteContext[]>[] = [];
+    let pairAddress = '';
+    let lpTokenDecimals = 18; //default
+
+    if (this._settings.uniswapVersions.includes(UniswapVersion.v2)) {
+
+      //directOverride ensure tokenA and tokenB direct pair only (0 or 1 in length)
+      for (let i = 0; i < routes.v2.length; i++) {
+        const routeCombo = routes.v2[i].route.map((c) => {
+          return removeEthFromContractAddress(c.contractAddress);
+        });
+
+        pairAddress = await this._uniswapContractFactoryV2.getPair(routeCombo[0], routeCombo[1]);
+
+        contractCallContext.push({
+          reference: `${UniswapVersion.v2}-pair`,
+          contractAddress: pairAddress,
+          abi: UniswapContractContextV2.pairAbi,
+          calls: [
+            {
+              reference: `decimals`,
+              methodName: 'decimals',
+              methodParameters: [],
+            }
+          ],
+          context: routes.v2,
+        });
+      }
+    }
+
+    const contractCallResults = await this._multicall.call(contractCallContext);
+
+    for (const key in contractCallResults.results) {
+      const contractCallReturnContext = contractCallResults.results[key];
+      if (contractCallReturnContext) {
+        for (let i = 0; i < contractCallReturnContext.callsReturnContext.length; i++) {
+          const callReturnContext = contractCallReturnContext.callsReturnContext[i];
+
+          if (!callReturnContext.success) {
+            continue;
+          }
+
+          switch (callReturnContext.reference) {
+            case `decimals`:
+              lpTokenDecimals = callReturnContext.returnValues[0];
+              break;
+          }
+
+        }
+      }
+    }
+
+    const tradeExpires = this.generateTradeDeadlineUnixTime();
+    const ethertokenAMinWithSlippageInBigNumber = new BigNumber(tokenAAmountEther)
+      .minus(
+        new BigNumber(tokenAAmountEther)
+          .times(this._settings.slippage)
+          .toFixed(this._fromToken.decimals)
+      )
+
+    const ethertokenBMinWithSlippageInBigNumber = new BigNumber(tokenBAmountEther)
+      .minus(
+        new BigNumber(tokenBAmountEther)
+          .times(this._settings.slippage)
+          .toFixed(this._toToken.decimals)
+      )
+
+    const weiLpAmountInBigNumber = lpAmountEther.shiftedBy(lpTokenDecimals);
+
+    let data: null | string = null;
+    let transaction: null | Transaction = null;
+    switch (this.tradePath()) {
+      case TradePath.ethToErc20:
+        data = this.generateRmLiquidityDataEthAndErc20(
+          UniswapVersion.v2,
+          this._toToken.contractAddress,
+          weiLpAmountInBigNumber,
+          ethertokenBMinWithSlippageInBigNumber.shiftedBy(this._toToken.decimals), //tokenB(toToken) is erc
+          parseEther(ethertokenAMinWithSlippageInBigNumber), //tokenA(fromToken) is ETH
+          tradeExpires.toString()
+        )
+        transaction = this.buildUpTransactionEth(UniswapVersion.v2, tokenAAmountEther, data);
+        break;
+      case TradePath.erc20ToEth:
+        data = this.generateRmLiquidityDataEthAndErc20(
+          UniswapVersion.v2,
+          this._toToken.contractAddress,
+          weiLpAmountInBigNumber,
+          ethertokenAMinWithSlippageInBigNumber.shiftedBy(this._fromToken.decimals), //tokenA(fromToken) is erc
+          parseEther(ethertokenBMinWithSlippageInBigNumber), //tokenB(toToken) is ETH
+          tradeExpires.toString()
+        )
+        transaction = this.buildUpTransactionEth(UniswapVersion.v2, tokenAAmountEther, data);
+        break;
+      case TradePath.erc20ToErc20:
+        data = this.generateRmLiquidityDataErc20AndErc20(
+          UniswapVersion.v2,
+          this._fromToken.contractAddress,
+          this._toToken.contractAddress,
+          weiLpAmountInBigNumber,
+          ethertokenAMinWithSlippageInBigNumber.shiftedBy(this._fromToken.decimals), //tokenA(fromToken) is erc
+          ethertokenBMinWithSlippageInBigNumber.shiftedBy(this._toToken.decimals), //tokenA(fromToken) is erc
+          tradeExpires.toString()
+        )
+        transaction = this.buildUpTransactionErc20(UniswapVersion.v2, data);
+        break;
+    }
+    return transaction;
+  }
+
+  /**
+   * Generate generateRmLiquidityDataEthAndErc20 data eth + erc20
+   * @param uniswapVersion The uniswap version
+   * @param tokenAddress The token address for erc20
+   * @param lpAmount The LP amount to remove in wei
+   * @param minTokenAmount The minumum token amount in wei
+   * @param minEthAmount The minimum ethers amount in wei
+   * @param deadline The deadline it expires unix time
+   */
+  private generateRmLiquidityDataEthAndErc20(
+    uniswapVersion: UniswapVersion,
+    tokenAddress: string,
+    lpAmount: BigNumber,
+    minTokenAmount: BigNumber,
+    minEthAmount: BigNumber,
+    deadline: string
+  ): string {
+    switch (uniswapVersion) {
+      case UniswapVersion.v2:
+        return this._uniswapRouterContractFactoryV2.removeLiquidityETH(
+          tokenAddress,
+          hexlify(lpAmount),
+          hexlify(minTokenAmount),
+          hexlify(minEthAmount),
+          this._ethereumAddress,
+          deadline
+        )
+      case UniswapVersion.v3:
+      default:
+        throw new UniswapError(
+          'Uniswap version not supported',
+          ErrorCodes.uniswapVersionNotSupported
+        );
+    }
+  }
+
+  /**
+  * Generate addLiquidity data erc20 + erc20
+  * @param uniswapVersion The uniswap version
+  * @param tokenAAddress The token A address for erc20
+  * @param tokenBAddress The token B address for erc20
+  * @param lpAmount The LP amount to remove in wei
+  * @param minTokenAAmount The minumum token A amount in wei
+  * @param minTokenBAmount The minimum token B amount in wei
+  * @param deadline The deadline it expires unix time
+  */
+  private generateRmLiquidityDataErc20AndErc20(
+    uniswapVersion: UniswapVersion,
+    tokenAAddress: string,
+    tokenBAddress: string,
+    lpAmount: BigNumber,
+    minTokenAAmount: BigNumber,
+    minTokenBAmount: BigNumber,
+    deadline: string
+  ): string {
+    switch (uniswapVersion) {
+      case UniswapVersion.v2:
+        return this._uniswapRouterContractFactoryV2.removeLiquidity(
+          tokenAAddress,
+          tokenBAddress,
+          hexlify(lpAmount),
+          hexlify(minTokenAAmount),
+          hexlify(minTokenBAmount),
+          this._ethereumAddress,
+          deadline
+        )
+      case UniswapVersion.v3:
+      default:
+        throw new UniswapError(
+          'Uniswap version not supported',
+          ErrorCodes.uniswapVersionNotSupported
+        );
+    }
+  }
+
   /**
    * Build up a transaction for erc20 from
    * @param data The data
    */
-  private buildUpTransactionErc20(
+  public buildUpTransactionErc20(
     uniswapVersion: UniswapVersion,
     data: string
   ): Transaction {
@@ -1759,7 +1959,7 @@ export class UniswapRouterFactory {
    * @param ethValue The eth value
    * @param data The data
    */
-  private buildUpTransactionEth(
+  public buildUpTransactionEth(
     uniswapVersion: UniswapVersion,
     ethValue: BigNumber,
     data: string
@@ -2228,7 +2428,9 @@ export class UniswapRouterFactory {
    */
   private calculatesTokenAAndTokenBPerLp(
     etherReserve0: BigNumber,
+    token0Decimals: number,
     etherReserve1: BigNumber,
+    token1Decimals: number,
     etherTotalSupply: BigNumber,
   ): {
     perLpEstimatedToken0: string;
@@ -2240,11 +2442,9 @@ export class UniswapRouterFactory {
     perLpEstimatedToken0 = new BigNumber(1).multipliedBy(etherReserve0).div(etherTotalSupply);
     perLpEstimatedToken1 = new BigNumber(1).multipliedBy(etherReserve1).div(etherTotalSupply);
 
-    console.log(perLpEstimatedToken0.toFixed());
-
     return {
-      perLpEstimatedToken0: perLpEstimatedToken0.toFixed(),
-      perLpEstimatedToken1: perLpEstimatedToken1.toFixed()
+      perLpEstimatedToken0: perLpEstimatedToken0.toFixed(token0Decimals),
+      perLpEstimatedToken1: perLpEstimatedToken1.toFixed(token1Decimals)
     };
   }
 
