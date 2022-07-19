@@ -162,31 +162,17 @@ export class UniswapRmLiquidity {
    * Handle new block for the trade price moving automatically emitting the stream if it changes
    */
   private async handleNewBlock(): Promise<void> {
-    // if (this.quoteChanged$.observers.length > 0 && this._currentLiquidityTradeContext) {
-    //   const trade = await this.executeTradePath(
-    //     new BigNumber(this._currentLiquidityTradeContext.baseConvertRequest),
-    //     this._currentLiquidityTradeContext.quoteDirection,
-    //     new BigNumber(this._currentLiquidityTradeContext.expectedConvertQuote)
-    //   );
+    if (this.quoteChanged$.observers.length > 0 && this._currentRmLiquidityInfoContext) {
+      const tradeInfo = await this.getRmTradeInfo();
 
-    //   if (
-    //     trade.tokenA.contractAddress ===
-    //     this._currentLiquidityTradeContext.tokenA.contractAddress &&
-    //     trade.tokenB.contractAddress ===
-    //     this._currentLiquidityTradeContext.tokenB.contractAddress &&
-    //     trade.transaction.from ===
-    //     this._uniswapPairFactoryContext.ethereumAddress
-    //   ) {
-    //     if (
-    //       trade.expectedConvertQuote !==
-    //       this._currentLiquidityTradeContext.expectedConvertQuote ||
-    //       this._currentLiquidityTradeContext.tradeExpires >
-    //       this._uniswapRouterFactory.generateTradeDeadlineUnixTime()
-    //     ) {
-    //       this._currentLiquidityTradeContext = this.buildCurrentTradeContext(trade);
-    //       this.quoteChanged$.next(trade);
-    //     }
-    //   }
-    // }
+      if (
+        tradeInfo.tokenAPerLpToken !== this._currentRmLiquidityInfoContext.tokenAPerLpToken ||
+        tradeInfo.tokenBPerLpToken !== this._currentRmLiquidityInfoContext.tokenBPerLpToken
+      ) {
+        this._currentRmLiquidityInfoContext = this.buildCurrentInfoContext(tradeInfo);
+        this.quoteChanged$.next(tradeInfo);
+      }
+
+    }
   }
 }
