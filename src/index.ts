@@ -29,6 +29,7 @@ export { UniswapSwapFactory } from './factories/main-logics/uniswap-swap/uniswap
 export { UniswapSwap } from './factories/main-logics/uniswap-swap/uniswap-swap';
 export { UniswapAddRmLiquidityFactory } from './factories/main-logics/uniswap-add-remove-liquidity/uniswap-add-rm-liquidity.factory';
 export { UniswapAddLiquidity } from './factories/main-logics/uniswap-add-remove-liquidity/uniswap-add-liquidity';
+export { UniswapRmLiquidity } from './factories/main-logics/uniswap-add-remove-liquidity/uniswap-rm-liquidity';
 export { UniswapMyLiquidityFactory } from './factories/main-logics/uniswap-my-liquidity/uniswap-my-liquidity.factory';
 export { UniswapMyLiquidity } from './factories/main-logics/uniswap-my-liquidity/uniswap-my-liquidity';
 export { UniswapPairContractFactoryPublicV2 } from './factories/pair/v2/uniswap-pair-contract.factory.public.v2';
