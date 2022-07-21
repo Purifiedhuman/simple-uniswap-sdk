@@ -94,6 +94,32 @@ export class UniswapRmLiquidity {
   }
 
   /**
+ * calculateSlippageAmount  
+ * @param tokenAmountEther The amount to calculate
+ * @param decimal decimal to format
+ * @param minimum to calculate minimum/maximum amount
+ */
+  public calculateSlippageAmount(
+    tokenAmountEther: string,
+    decimal: number,
+    minimum = true
+  ): string {
+    if (minimum) {
+      return new BigNumber(tokenAmountEther)
+        .minus(
+          new BigNumber(tokenAmountEther)
+            .times(this._uniswapPairFactoryContext.settings.slippage)
+        ).toFixed(decimal);
+    } else {
+      return new BigNumber(tokenAmountEther)
+        .plus(
+          new BigNumber(tokenAmountEther)
+            .times(this._uniswapPairFactoryContext.settings.slippage)
+        ).toFixed(decimal);
+    }
+  }
+
+  /**
    * Route getter
    */
   private get _routes(): UniswapRouterFactory {
