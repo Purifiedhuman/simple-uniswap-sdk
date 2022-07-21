@@ -94,6 +94,13 @@ export class UniswapRmLiquidity {
   }
 
   /**
+   * Generates the trade datetime unix time
+   */
+  public generateTradeDeadlineUnixTime(): string {
+    return this._routes.generateTradeDeadlineUnixTime().toString();
+  }
+
+  /**
  * calculateSlippageAmount  
  * @param tokenAmountEther The amount to calculate
  * @param decimal decimal to format
