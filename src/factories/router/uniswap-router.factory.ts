@@ -1257,9 +1257,7 @@ export class UniswapRouterFactory {
 
     const etherTokenAAndTokenBPerLp = this.calculatesTokenAAndTokenBPerLp(
       etherReserve0,
-      token0Decimals,
       etherReserve1,
-      token1Decimals,
       etherTotalSupply,
     );
 
@@ -2428,9 +2426,7 @@ export class UniswapRouterFactory {
    */
   private calculatesTokenAAndTokenBPerLp(
     etherReserve0: BigNumber,
-    token0Decimals: number,
     etherReserve1: BigNumber,
-    token1Decimals: number,
     etherTotalSupply: BigNumber,
   ): {
     perLpEstimatedToken0: string;
@@ -2443,8 +2439,8 @@ export class UniswapRouterFactory {
     perLpEstimatedToken1 = new BigNumber(1).multipliedBy(etherReserve1).div(etherTotalSupply);
 
     return {
-      perLpEstimatedToken0: perLpEstimatedToken0.toFixed(token0Decimals),
-      perLpEstimatedToken1: perLpEstimatedToken1.toFixed(token1Decimals)
+      perLpEstimatedToken0: perLpEstimatedToken0.toFixed(),
+      perLpEstimatedToken1: perLpEstimatedToken1.toFixed()
     };
   }
 
@@ -2468,11 +2464,11 @@ export class UniswapRouterFactory {
   private calculateToken0Token1PoolFromLP(
     etherLiquidity: BigNumber,
     etherTotalSupply: BigNumber,
-    etherPairBalance: BigNumber,
+    etherReserve: BigNumber,
     decimals: number
   ): string {
-
-    return etherLiquidity.multipliedBy(etherPairBalance).div(etherTotalSupply).toFixed(decimals);
+    const estimatedPoolToken = etherLiquidity.multipliedBy(etherReserve.div(etherTotalSupply));
+    return estimatedPoolToken.toFixed(decimals);
   }
 
   /**
