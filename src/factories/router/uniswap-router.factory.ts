@@ -772,10 +772,10 @@ export class UniswapRouterFactory {
 
     suppliedLiquidityPairsInfo.map((val) => {
       val.token0EstimatedPool = this.calculateToken0Token1PoolFromLP(
-        new BigNumber(val.lpTokens), new BigNumber(val.pairTotalSupply), new BigNumber(val.pairToken0Balance));
+        new BigNumber(val.lpTokens), new BigNumber(val.pairTotalSupply), new BigNumber(val.pairToken0Balance), val.token0?.decimals ?? 18);
 
       val.token1EstimatedPool = this.calculateToken0Token1PoolFromLP(
-        new BigNumber(val.lpTokens), new BigNumber(val.pairTotalSupply), new BigNumber(val.pairToken1Balance));
+        new BigNumber(val.lpTokens), new BigNumber(val.pairTotalSupply), new BigNumber(val.pairToken1Balance), val.token1?.decimals ?? 18);
 
       return val;
     })
@@ -2468,10 +2468,11 @@ export class UniswapRouterFactory {
   private calculateToken0Token1PoolFromLP(
     etherLiquidity: BigNumber,
     etherTotalSupply: BigNumber,
-    etherPairBalance: BigNumber
+    etherPairBalance: BigNumber,
+    decimals: number
   ): string {
 
-    return etherLiquidity.multipliedBy(etherPairBalance).div(etherTotalSupply).toFixed();
+    return etherLiquidity.multipliedBy(etherPairBalance).div(etherTotalSupply).toFixed(decimals);
   }
 
   /**
