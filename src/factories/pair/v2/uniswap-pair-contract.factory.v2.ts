@@ -12,7 +12,7 @@ export class UniswapPairContractFactoryV2 {
   constructor(
     private _ethersProvider: EthersProvider,
     private _pairAddress: string = UniswapContractContextV2.pairAddress
-  ) {}
+  ) { }
 
   public async getReserves(): Promise<GetReservesResponse> {
     return await this._uniswapPairFactory.getReserves();
@@ -29,5 +29,18 @@ export class UniswapPairContractFactoryV2 {
     return {
       tokenA, tokenB
     }
+  }
+
+  /**
+   * Generate the token approve data allowance to move the tokens.
+   * This will return the data for you to send as a transaction
+   * @spender The contract address for which you are allowing to move tokens on your behalf
+   * @value The amount you want to allow them to do
+   */
+  public generateApproveAllowanceData(spender: string, value: string): string {
+    return this._uniswapPairFactory.interface.encodeFunctionData('approve', [
+      spender,
+      value,
+    ]);
   }
 }

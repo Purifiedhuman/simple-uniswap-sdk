@@ -8,4 +8,5 @@ export interface RmLiquidityQuote {
   tokenAPerLpToken: string;
   tokenBPerLpToken: string;
   poolShare: string;
+  allowance: string;
 }

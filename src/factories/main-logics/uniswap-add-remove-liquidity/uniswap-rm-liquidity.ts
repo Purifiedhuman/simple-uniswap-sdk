@@ -1,9 +1,13 @@
 import BigNumber from 'bignumber.js';
 import { Subject } from 'rxjs';
 import { CoinGecko } from '../../../coin-gecko';
+import { Constants } from '../../../common/constants';
 import { deepClone } from '../../../common/utils/deep-clone';
+import { hexlify } from '../../../common/utils/hexlify';
 import { UniswapVersion } from '../../../enums/uniswap-version';
+import { uniswapContracts } from '../../../uniswap-contract-context/get-uniswap-contracts';
 import { Transaction } from '../../pair/models/transaction';
+import { UniswapPairContractFactoryV2 } from '../../pair/v2/uniswap-pair-contract.factory.v2';
 import { UniswapRouterFactory } from '../../router/uniswap-router.factory';
 import { Token } from '../../token/models/token';
 import { UniswapAddRmPairFactoryContexts } from '../models/uniswap-add-rm-pair-factory-context';
@@ -94,6 +98,39 @@ export class UniswapRmLiquidity {
   }
 
   /**
+   * Generate the lp address approve data allowance to move the tokens.
+   * This will return the data for you to send as a transaction
+   * @param uniswapVersion The uniswap version
+   */
+  public async generateApproveAllowanceData(
+    uniswapVersion: UniswapVersion,
+    pairAddress: string
+  ): Promise<Transaction> {
+    const pairContractFactory = new UniswapPairContractFactoryV2(
+      this._uniswapPairFactoryContext.ethersProvider,
+      pairAddress
+    );
+
+    const data = pairContractFactory.generateApproveAllowanceData(
+      uniswapVersion === UniswapVersion.v2
+        ? uniswapContracts.v2.getRouterAddress(
+          this._uniswapPairFactoryContext.settings.cloneUniswapContractDetails
+        )
+        : uniswapContracts.v3.getRouterAddress(
+          this._uniswapPairFactoryContext.settings.cloneUniswapContractDetails
+        ),
+      hexlify(new BigNumber(1))
+    );
+
+    return {
+      to: pairAddress,
+      from: this._uniswapPairFactoryContext.ethereumAddress,
+      data,
+      value: Constants.EMPTY_HEX_STRING,
+    };
+  }
+
+  /**
    * Generates the trade datetime unix time
    */
   public generateTradeDeadlineUnixTime(): string {
@@ -146,7 +183,8 @@ export class UniswapRmLiquidity {
       tokenAPerLpToken: trade.tokenAPerLpToken,
       tokenBPerLpToken: trade.tokenBPerLpToken,
       estimatedTokenAOwned: trade.estimatedTokenAOwned,
-      estimatedTokenBOwned: trade.estimatedTokenBOwned
+      estimatedTokenBOwned: trade.estimatedTokenBOwned,
+      allowance: trade.allowance
     });
   }
 
@@ -165,6 +203,7 @@ export class UniswapRmLiquidity {
       tokenBPerLpToken: rmLiquidityQuotes.tokenBPerLpToken,
       estimatedTokenAOwned: new BigNumber(rmLiquidityQuotes.lpTokenBalance).multipliedBy(rmLiquidityQuotes.tokenAPerLpToken).toFixed(this.tokenA.decimals),
       estimatedTokenBOwned: new BigNumber(rmLiquidityQuotes.lpTokenBalance).multipliedBy(rmLiquidityQuotes.tokenBPerLpToken).toFixed(this.tokenB.decimals),
+      allowance: rmLiquidityQuotes.allowance
     };
 
     return infoContext;

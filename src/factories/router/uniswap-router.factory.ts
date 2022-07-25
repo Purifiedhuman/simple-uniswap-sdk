@@ -1237,6 +1237,7 @@ export class UniswapRouterFactory {
         poolShare: '',
         tokenAPerLpToken: '',
         tokenBPerLpToken: '',
+        allowance: ''
       };
     }
 
@@ -1263,6 +1264,13 @@ export class UniswapRouterFactory {
 
     const poolShare = this.calculatesPoolShare(new BigNumber(formattedLpBalance), etherTotalSupply);
 
+    //Check allowance
+    const allowanceAndBalanceOfForTokens = await this._tokensFactory.getAllowanceAndBalanceOfForContracts(
+      this._ethereumAddress,
+      [pairAddress],
+      true
+    );
+
     return {
       uniswapVersion: UniswapVersion.v2, //hardcode, no support for v3
       invalidPair,
@@ -1271,6 +1279,7 @@ export class UniswapRouterFactory {
       poolShare: poolShare,
       tokenAPerLpToken: isPairReversed ? etherTokenAAndTokenBPerLp.perLpEstimatedToken1 : etherTokenAAndTokenBPerLp.perLpEstimatedToken0,
       tokenBPerLpToken: isPairReversed ? etherTokenAAndTokenBPerLp.perLpEstimatedToken0 : etherTokenAAndTokenBPerLp.perLpEstimatedToken1,
+      allowance: allowanceAndBalanceOfForTokens[0].allowanceAndBalanceOf.allowanceV2,
     };
   }
 

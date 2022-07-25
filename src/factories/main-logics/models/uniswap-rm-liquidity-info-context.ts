@@ -9,4 +9,5 @@ export interface UniswapRmLiquidityInfoContext {
   estimatedTokenAOwned: string;
   estimatedTokenBOwned: string;
   poolShare: string;
+  allowance: string;
 }
