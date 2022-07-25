@@ -6,5 +6,7 @@ export interface UniswapRmLiquidityInfoContext {
   lpTokenBalance: string;
   tokenAPerLpToken: string;
   tokenBPerLpToken: string;
+  estimatedTokenAOwned: string;
+  estimatedTokenBOwned: string;
   poolShare: string;
 }

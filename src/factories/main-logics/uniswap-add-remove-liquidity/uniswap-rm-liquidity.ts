@@ -145,6 +145,8 @@ export class UniswapRmLiquidity {
       poolShare: trade.poolShare,
       tokenAPerLpToken: trade.tokenAPerLpToken,
       tokenBPerLpToken: trade.tokenBPerLpToken,
+      estimatedTokenAOwned: trade.estimatedTokenAOwned,
+      estimatedTokenBOwned: trade.estimatedTokenBOwned
     });
   }
 
@@ -161,6 +163,8 @@ export class UniswapRmLiquidity {
       poolShare: rmLiquidityQuotes.poolShare,
       tokenAPerLpToken: rmLiquidityQuotes.tokenAPerLpToken,
       tokenBPerLpToken: rmLiquidityQuotes.tokenBPerLpToken,
+      estimatedTokenAOwned: new BigNumber(rmLiquidityQuotes.lpTokenBalance).multipliedBy(rmLiquidityQuotes.tokenAPerLpToken).toFixed(this.tokenA.decimals),
+      estimatedTokenBOwned: new BigNumber(rmLiquidityQuotes.lpTokenBalance).multipliedBy(rmLiquidityQuotes.tokenBPerLpToken).toFixed(this.tokenB.decimals),
     };
 
     return infoContext;
