@@ -1,7 +1,7 @@
 import { UniswapVersion } from '../enums/uniswap-version';
 import { UniswapPairSettings } from '../factories/pair/models/uniswap-pair-settings';
 import { UniswapAddRmLiquidityFactory } from '../factories/main-logics/uniswap-add-remove-liquidity/uniswap-add-rm-liquidity.factory';
-import BigNumber from 'bignumber.js';
+// import BigNumber from 'bignumber.js';
 
 const routeTest = async () => {
   const ethereumAddress = '0xa207aDd901BF900C81Feb04D33968a0132bD68DA';
@@ -44,19 +44,19 @@ const routeTest = async () => {
 
   const uniswapLiquidityFactory = await uniswapMain.createRemoveLiquidityFactory();
 
-  const rmTradeInfo = await uniswapLiquidityFactory.getRmTradeInfo();
+  // const rmTradeInfo = await uniswapLiquidityFactory.getRmTradeInfo();
 
-  const transaction = await uniswapLiquidityFactory.buildTransaction(
-    new BigNumber(1), new BigNumber('1.041049287455796477'), new BigNumber('0.976860614806926557')
-  )
-
-  // const approvalTransaction = await uniswapLiquidityFactory.buildApproveAllowanceTransaction(
-  //   UniswapVersion.v2, '0xE7fFCdBe826F4031DFF1Bfeb4E2b751FEBFC3B82','1.0','4.0'
+  // const transaction = await uniswapLiquidityFactory.buildTransaction(
+  //   new BigNumber(1), new BigNumber('1.041049287455796477'), new BigNumber('0.976860614806926557')
   // )
 
-  console.log(rmTradeInfo);
-  console.log(transaction);
-  // console.log(approvalTransaction);
+  const approvalTransaction = await uniswapLiquidityFactory.buildApproveAllowanceTransaction(
+    UniswapVersion.v2, '0xE7fFCdBe826F4031DFF1Bfeb4E2b751FEBFC3B82','7.071067811865475234', 18
+  )
+
+  // console.log(rmTradeInfo);
+  // console.log(transaction);
+  console.log(approvalTransaction);
 
 };
 
