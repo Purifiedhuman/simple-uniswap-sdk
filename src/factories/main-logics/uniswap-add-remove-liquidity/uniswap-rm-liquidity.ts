@@ -106,14 +106,16 @@ export class UniswapRmLiquidity {
     uniswapVersion: UniswapVersion,
     pairAddress: string,
     etherAvailableAllowance: string,
-    etherAmountsToSend: string
+    etherAmountsToSend: string,
+    lpDecimals = 18
   ): Promise<Transaction> {
     const pairContractFactory = new UniswapPairContractFactoryV2(
       this._uniswapPairFactoryContext.ethersProvider,
       pairAddress
     );
 
-    const allowanceToRequest = new BigNumber(etherAmountsToSend).minus(etherAvailableAllowance);
+    const allowanceToRequest = new BigNumber(etherAmountsToSend).minus(etherAvailableAllowance)
+      .shiftedBy(lpDecimals)
 
     const data = pairContractFactory.generateApproveAllowanceData(
       uniswapVersion === UniswapVersion.v2

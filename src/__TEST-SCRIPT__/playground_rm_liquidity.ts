@@ -50,8 +50,13 @@ const routeTest = async () => {
     new BigNumber(1), new BigNumber('1.041049287455796477'), new BigNumber('0.976860614806926557')
   )
 
+  // const approvalTransaction = await uniswapLiquidityFactory.buildApproveAllowanceTransaction(
+  //   UniswapVersion.v2, '0xE7fFCdBe826F4031DFF1Bfeb4E2b751FEBFC3B82','1.0','4.0'
+  // )
+
   console.log(rmTradeInfo);
   console.log(transaction);
+  // console.log(approvalTransaction);
 
 };
 
