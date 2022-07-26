@@ -105,7 +105,6 @@ export class UniswapRmLiquidity {
   public async buildApproveAllowanceTransaction(
     uniswapVersion: UniswapVersion,
     pairAddress: string,
-    etherAvailableAllowance: string,
     etherAmountsToSend: string,
     lpDecimals = 18
   ): Promise<Transaction> {
@@ -114,7 +113,8 @@ export class UniswapRmLiquidity {
       pairAddress
     );
 
-    const allowanceToRequest = new BigNumber(etherAmountsToSend).minus(etherAvailableAllowance)
+    const allowanceToRequest = new BigNumber(etherAmountsToSend)
+      // .minus(etherAvailableAllowance)
       .shiftedBy(lpDecimals)
 
     const data = pairContractFactory.generateApproveAllowanceData(
