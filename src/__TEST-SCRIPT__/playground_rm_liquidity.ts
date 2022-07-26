@@ -51,7 +51,7 @@ const routeTest = async () => {
   )
 
   console.log(rmTradeInfo);
-  // console.log(transaction);
+  console.log(transaction);
 
 };
 

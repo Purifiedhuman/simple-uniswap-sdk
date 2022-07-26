@@ -102,14 +102,18 @@ export class UniswapRmLiquidity {
    * This will return the data for you to send as a transaction
    * @param uniswapVersion The uniswap version
    */
-  public async generateApproveAllowanceData(
+  public async buildApproveAllowanceTransaction(
     uniswapVersion: UniswapVersion,
-    pairAddress: string
+    pairAddress: string,
+    etherAvailableAllowance: string,
+    etherAmountsToSend: string
   ): Promise<Transaction> {
     const pairContractFactory = new UniswapPairContractFactoryV2(
       this._uniswapPairFactoryContext.ethersProvider,
       pairAddress
     );
+
+    const allowanceToRequest = new BigNumber(etherAmountsToSend).minus(etherAvailableAllowance);
 
     const data = pairContractFactory.generateApproveAllowanceData(
       uniswapVersion === UniswapVersion.v2
@@ -119,7 +123,7 @@ export class UniswapRmLiquidity {
         : uniswapContracts.v3.getRouterAddress(
           this._uniswapPairFactoryContext.settings.cloneUniswapContractDetails
         ),
-      hexlify(new BigNumber(1))
+      hexlify(allowanceToRequest)
     );
 
     return {
