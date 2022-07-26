@@ -1,8 +1,9 @@
 import { UniswapVersion } from '../../../enums/uniswap-version';
+import { Token } from '../../token/models/token';
 
 export interface UniswapRmLiquidityInfoContext {
   uniswapVersion: UniswapVersion;
-  lpAddress: string;
+  lpToken: Token | undefined;
   lpTokenBalance: string;
   tokenAPerLpToken: string;
   tokenBPerLpToken: string;

@@ -1232,7 +1232,7 @@ export class UniswapRouterFactory {
       return {
         uniswapVersion: UniswapVersion.v2, //hardcode, no support for v3
         invalidPair,
-        lpAddress: '',
+        lpToken: undefined,
         lpTokenBalance: '',
         poolShare: '',
         tokenAPerLpToken: '',
@@ -1271,10 +1271,19 @@ export class UniswapRouterFactory {
       true
     );
 
+    const tokensFactory = new TokensFactory(
+      this._ethersProvider,
+      this._settings?.customNetwork
+    );
+
+    const token = await tokensFactory.getTokens([
+      pairAddress
+    ]);
+
     return {
       uniswapVersion: UniswapVersion.v2, //hardcode, no support for v3
       invalidPair,
-      lpAddress: pairAddress,
+      lpToken: token[0],
       lpTokenBalance: formattedLpBalance,
       poolShare: poolShare,
       tokenAPerLpToken: isPairReversed ? etherTokenAAndTokenBPerLp.perLpEstimatedToken1 : etherTokenAAndTokenBPerLp.perLpEstimatedToken0,

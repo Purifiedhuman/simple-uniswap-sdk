@@ -181,7 +181,7 @@ export class UniswapRmLiquidity {
   private buildCurrentInfoContext(trade: UniswapRmLiquidityInfoContext): UniswapRmLiquidityInfoContext {
     return deepClone({
       uniswapVersion: trade.uniswapVersion,
-      lpAddress: trade.lpAddress,
+      lpToken: trade.lpToken,
       lpTokenBalance: trade.lpTokenBalance,
       poolShare: trade.poolShare,
       tokenAPerLpToken: trade.tokenAPerLpToken,
@@ -200,7 +200,7 @@ export class UniswapRmLiquidity {
 
     const infoContext: UniswapRmLiquidityInfoContext = {
       uniswapVersion: UniswapVersion.v2, //hardcode, no support for v3
-      lpAddress: rmLiquidityQuotes.lpAddress,
+      lpToken: rmLiquidityQuotes.lpToken,
       lpTokenBalance: rmLiquidityQuotes.lpTokenBalance,
       poolShare: rmLiquidityQuotes.poolShare,
       tokenAPerLpToken: rmLiquidityQuotes.tokenAPerLpToken,
