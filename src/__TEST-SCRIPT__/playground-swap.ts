@@ -1,22 +1,15 @@
 import { UniswapVersion } from '../enums/uniswap-version';
 import { UniswapPairSettings } from '../factories/pair/models/uniswap-pair-settings';
-import { UniswapMyLiquidityFactory } from '../factories/main-logics/uniswap-my-liquidity/uniswap-my-liquidity.factory';
-
-// WBTC - 0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599
-// FUN - 0x419D0d8BdD9aF5e606Ae2232ed285Aff190E711b
-// REP - 0x1985365e9f78359a9B6AD760e32412f4a445E862
-// WETH - 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2
-// UNI - 0x1f9840a85d5af5bf1d1762f925bdaddc4201f984
-// AAVE - 0x7fc66500c84a76ad7e9c93437bfc5ac33e2ddae9
-// GTC - 0xde30da39c46104798bb5aa3fe8b9e0e1f348163f
+import BigNumber from 'bignumber.js';
+import { UniswapSwapFactory } from '../factories/main-logics/uniswap-swap/uniswap-swap.factory';
+import { TradeDirection } from '..';
 
 const routeTest = async () => {
-
-  // const fromTokenContractAddress = '0xC285cc080a40aE0Fb4Ae198b2FB5cbdb4A7F3E66'; //0x8a1aaE68BA6DDbfaDe8359f18321e87d8ab8Fae9
-  // const toTokenContractAddress = '0xa6673B7c3B6A30DA1B67e62dD4A0319bFE755Edb'; //0xC285cc080a40aE0Fb4Ae198b2FB5cbdb4A7F3E66
   const ethereumAddress = '0xa207aDd901BF900C81Feb04D33968a0132bD68DA';
 
-  const uniswapMain = new UniswapMyLiquidityFactory({
+  const uniswapMain = new UniswapSwapFactory({
+    fromTokenContractAddress: '0x451002da4394e8ff717Ff6Dc4F48BFfA6139A858_ETH',
+    toTokenContractAddress: '0x8a1aaE68BA6DDbfaDe8359f18321e87d8ab8Fae9',
     ethereumAddress,
     chainId: 80001,
     providerUrl: 'https://polygon-mumbai.g.alchemy.com/v2/LOsCmKKqyJojD5OsLyqlAFVquaysK2Wb',
@@ -50,17 +43,11 @@ const routeTest = async () => {
     }),
   });
 
-  // const startTime = new Date().getTime();
+  const uniswapLiquidityFactory = await uniswapMain.createSwapFactory();
 
-  const uniswapLiquidityFactory = await uniswapMain.createMyLiquidityFactory();
+  const tradeContext = await uniswapLiquidityFactory.trade('0.000000000000000023', TradeDirection.input);
 
-  // const trade = await uniswapLiquidityFactory.trade('34', TradeDirection.input, '10');
-  const suppliedPairs = await uniswapLiquidityFactory.findSuppliedPairs();
-  const suppliedPairsInfo = await uniswapLiquidityFactory.getPairsLiquidityInfo(suppliedPairs);
-
-  console.log(suppliedPairsInfo);
-
-  // console.log(suppliedPairsInfo[0]);
+  console.log(tradeContext);
 
 };
 
