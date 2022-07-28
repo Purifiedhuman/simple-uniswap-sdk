@@ -1840,7 +1840,7 @@ export class UniswapRouterFactory {
           this._toToken.contractAddress,
           weiLpAmountInBigNumber,
           ethertokenBMinWithSlippageInBigNumber.shiftedBy(this._toToken.decimals), //tokenB(toToken) is erc
-          ethertokenAMinWithSlippageInBigNumber, //tokenA(fromToken) is ETH
+          parseEther(ethertokenAMinWithSlippageInBigNumber), //tokenA(fromToken) is ETH
           tradeExpires.toString()
         )
         transaction = this.buildUpTransactionEth(UniswapVersion.v2, tokenAAmountEther, data);
@@ -1851,7 +1851,7 @@ export class UniswapRouterFactory {
           this._toToken.contractAddress,
           weiLpAmountInBigNumber,
           ethertokenAMinWithSlippageInBigNumber.shiftedBy(this._fromToken.decimals), //tokenA(fromToken) is erc
-          ethertokenBMinWithSlippageInBigNumber, //tokenB(toToken) is ETH
+          parseEther(ethertokenBMinWithSlippageInBigNumber), //tokenB(toToken) is ETH
           tradeExpires.toString()
         )
         transaction = this.buildUpTransactionEth(UniswapVersion.v2, tokenBAmountEther, data);
