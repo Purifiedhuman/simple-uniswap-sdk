@@ -1843,7 +1843,7 @@ export class UniswapRouterFactory {
           parseEther(ethertokenAMinWithSlippageInBigNumber), //tokenA(fromToken) is ETH
           tradeExpires.toString()
         )
-        transaction = this.buildUpTransactionEth(UniswapVersion.v2, tokenAAmountEther, data);
+        transaction = this.buildUpTransactionErc20(UniswapVersion.v2, data);
         break;
       case TradePath.erc20ToEth:
         data = this.generateRmLiquidityDataEthAndErc20(
@@ -1854,7 +1854,7 @@ export class UniswapRouterFactory {
           parseEther(ethertokenBMinWithSlippageInBigNumber), //tokenB(toToken) is ETH
           tradeExpires.toString()
         )
-        transaction = this.buildUpTransactionEth(UniswapVersion.v2, tokenBAmountEther, data);
+        transaction = this.buildUpTransactionErc20(UniswapVersion.v2, data);
         break;
       case TradePath.erc20ToErc20:
         data = this.generateRmLiquidityDataErc20AndErc20(
