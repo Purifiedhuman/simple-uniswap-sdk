@@ -1,6 +1,5 @@
 import { UniswapVersion } from '../enums/uniswap-version';
 import { UniswapPairSettings } from '../factories/pair/models/uniswap-pair-settings';
-import BigNumber from 'bignumber.js';
 import { UniswapSwapFactory } from '../factories/main-logics/uniswap-swap/uniswap-swap.factory';
 import { TradeDirection } from '..';
 
