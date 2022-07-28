@@ -140,9 +140,9 @@ export class UniswapAddLiquidity {
    * Destroy the trade instance watchers + subscriptions
    */
   public destroy(): void {
-    for (let i = 0; i < this.quoteChanged$.observers.length; i++) {
-      this.quoteChanged$.observers[i].complete();
-    }
+    // for (let i = 0; i < this.quoteChanged$.observers.length; i++) {
+    //   this.quoteChanged$.observers[i].complete();
+    // }
 
     this.unwatchTradePrice();
   }
@@ -429,10 +429,11 @@ export class UniswapAddLiquidity {
         this._uniswapPairFactoryContext.ethereumAddress
       ) {
         if (
-          trade.expectedConvertQuote !==
-          this._currentLiquidityTradeContext.expectedConvertQuote ||
-          this._currentLiquidityTradeContext.tradeExpires >
-          this._uniswapRouterFactory.generateTradeDeadlineUnixTime()
+          trade.baseConvertRequest === this._currentLiquidityTradeContext.baseConvertRequest && (
+            trade.expectedConvertQuote !==
+            this._currentLiquidityTradeContext.expectedConvertQuote ||
+            this._currentLiquidityTradeContext.tradeExpires >
+            this._uniswapRouterFactory.generateTradeDeadlineUnixTime())
         ) {
           this._currentLiquidityTradeContext = this.buildCurrentTradeContext(trade);
           this.quoteChanged$.next(trade);

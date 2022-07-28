@@ -56,7 +56,7 @@ export class UniswapSwap {
   constructor(
     private _coinGecko: CoinGecko,
     private _uniswapPairFactoryContext: UniswapPairFactoryContext
-  ) {}
+  ) { }
 
   /**
    * The to token
@@ -145,9 +145,9 @@ export class UniswapSwap {
    * Destroy the trade instance watchers + subscriptions
    */
   public destroy(): void {
-    for (let i = 0; i < this.quoteChanged$.observers.length; i++) {
-      this.quoteChanged$.observers[i].complete();
-    }
+    // for (let i = 0; i < this.quoteChanged$.observers.length; i++) {
+    //   this.quoteChanged$.observers[i].complete();
+    // }
     this.unwatchTradePrice();
   }
 
@@ -164,6 +164,7 @@ export class UniswapSwap {
     this.destroy();
 
     const trade = await this.executeTradePath(new BigNumber(amount), direction);
+
     this._currentTradeContext = this.buildCurrentTradeContext(trade);
 
     this.watchTradePrice();
@@ -263,11 +264,11 @@ export class UniswapSwap {
     const data = this._fromTokenFactory.generateApproveAllowanceData(
       uniswapVersion === UniswapVersion.v2
         ? uniswapContracts.v2.getRouterAddress(
-            this._uniswapPairFactoryContext.settings.cloneUniswapContractDetails
-          )
+          this._uniswapPairFactoryContext.settings.cloneUniswapContractDetails
+        )
         : uniswapContracts.v3.getRouterAddress(
-            this._uniswapPairFactoryContext.settings.cloneUniswapContractDetails
-          ),
+          this._uniswapPairFactoryContext.settings.cloneUniswapContractDetails
+        ),
       '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff'
     );
 
@@ -336,11 +337,11 @@ export class UniswapSwap {
       liquidityProviderFee:
         direction === TradeDirection.input
           ? baseConvertRequest
-              .times(bestRouteQuote.liquidityProviderFee)
-              .toFixed(this.fromToken.decimals)
+            .times(bestRouteQuote.liquidityProviderFee)
+            .toFixed(this.fromToken.decimals)
           : new BigNumber(bestRouteQuote.expectedConvertQuote)
-              .times(bestRouteQuote.liquidityProviderFee)
-              .toFixed(this.fromToken.decimals),
+            .times(bestRouteQuote.liquidityProviderFee)
+            .toFixed(this.fromToken.decimals),
       liquidityProviderFeePercent: bestRouteQuote.liquidityProviderFee,
       tradeExpires: bestRouteQuote.tradeExpires,
       routePathTokenMap: bestRouteQuote.routePathArrayTokenMap,
@@ -351,8 +352,8 @@ export class UniswapSwap {
       hasEnoughAllowance: bestRouteQuotes.hasEnoughAllowance,
       approvalTransaction: !bestRouteQuotes.hasEnoughAllowance
         ? await this.generateApproveMaxAllowanceData(
-            bestRouteQuote.uniswapVersion
-          )
+          bestRouteQuote.uniswapVersion
+        )
         : undefined,
       toToken: turnTokenIntoEthForResponse(
         this.toToken,
@@ -405,11 +406,11 @@ export class UniswapSwap {
       liquidityProviderFee:
         direction === TradeDirection.input
           ? baseConvertRequest
-              .times(bestRouteQuote.liquidityProviderFee)
-              .toFixed(this.fromToken.decimals)
+            .times(bestRouteQuote.liquidityProviderFee)
+            .toFixed(this.fromToken.decimals)
           : new BigNumber(bestRouteQuote.expectedConvertQuote)
-              .times(bestRouteQuote.liquidityProviderFee)
-              .toFixed(this.fromToken.decimals),
+            .times(bestRouteQuote.liquidityProviderFee)
+            .toFixed(this.fromToken.decimals),
       liquidityProviderFeePercent: bestRouteQuote.liquidityProviderFee,
       tradeExpires: bestRouteQuote.tradeExpires,
       routePathTokenMap: bestRouteQuote.routePathArrayTokenMap,
@@ -418,8 +419,8 @@ export class UniswapSwap {
       hasEnoughAllowance: bestRouteQuotes.hasEnoughAllowance,
       approvalTransaction: !bestRouteQuotes.hasEnoughAllowance
         ? await this.generateApproveMaxAllowanceData(
-            bestRouteQuote.uniswapVersion
-          )
+          bestRouteQuote.uniswapVersion
+        )
         : undefined,
       toToken: this.toToken,
       toBalance: new BigNumber(bestRouteQuotes.toBalance)
@@ -469,11 +470,11 @@ export class UniswapSwap {
       liquidityProviderFee:
         direction === TradeDirection.input
           ? baseConvertRequest
-              .times(bestRouteQuote.liquidityProviderFee)
-              .toFixed(this.fromToken.decimals)
+            .times(bestRouteQuote.liquidityProviderFee)
+            .toFixed(this.fromToken.decimals)
           : new BigNumber(bestRouteQuote.expectedConvertQuote)
-              .times(bestRouteQuote.liquidityProviderFee)
-              .toFixed(this.fromToken.decimals),
+            .times(bestRouteQuote.liquidityProviderFee)
+            .toFixed(this.fromToken.decimals),
       liquidityProviderFeePercent: bestRouteQuote.liquidityProviderFee,
       tradeExpires: bestRouteQuote.tradeExpires,
       routePathTokenMap: bestRouteQuote.routePathArrayTokenMap,
@@ -553,20 +554,22 @@ export class UniswapSwap {
 
       if (
         trade.fromToken.contractAddress ===
-          this._currentTradeContext.fromToken.contractAddress &&
+        this._currentTradeContext.fromToken.contractAddress &&
         trade.toToken.contractAddress ===
-          this._currentTradeContext.toToken.contractAddress &&
+        this._currentTradeContext.toToken.contractAddress &&
         trade.transaction.from ===
-          this._uniswapPairFactoryContext.ethereumAddress
+        this._uniswapPairFactoryContext.ethereumAddress
       ) {
         if (
-          trade.expectedConvertQuote !==
+          trade.baseConvertRequest === this._currentTradeContext.baseConvertRequest
+          && (
+            trade.expectedConvertQuote !==
             this._currentTradeContext.expectedConvertQuote ||
-          trade.routeText !== this._currentTradeContext.routeText ||
-          trade.liquidityProviderFee !==
+            trade.routeText !== this._currentTradeContext.routeText ||
+            trade.liquidityProviderFee !==
             this._currentTradeContext.liquidityProviderFee ||
-          this._currentTradeContext.tradeExpires >
-            this._uniswapRouterFactory.generateTradeDeadlineUnixTime()
+            this._currentTradeContext.tradeExpires >
+            this._uniswapRouterFactory.generateTradeDeadlineUnixTime())
         ) {
           this._currentTradeContext = this.buildCurrentTradeContext(trade);
           this.quoteChanged$.next(trade);

@@ -7,8 +7,8 @@ const routeTest = async () => {
   const ethereumAddress = '0xa207aDd901BF900C81Feb04D33968a0132bD68DA';
 
   const uniswapMain = new UniswapSwapFactory({
-    fromTokenContractAddress: '0x451002da4394e8ff717Ff6Dc4F48BFfA6139A858_ETH',
-    toTokenContractAddress: '0x8a1aaE68BA6DDbfaDe8359f18321e87d8ab8Fae9',
+    fromTokenContractAddress: '0x8a1aaE68BA6DDbfaDe8359f18321e87d8ab8Fae9',
+    toTokenContractAddress: '0xC285cc080a40aE0Fb4Ae198b2FB5cbdb4A7F3E66',
     ethereumAddress,
     chainId: 80001,
     providerUrl: 'https://polygon-mumbai.g.alchemy.com/v2/LOsCmKKqyJojD5OsLyqlAFVquaysK2Wb',
@@ -44,9 +44,19 @@ const routeTest = async () => {
 
   const uniswapLiquidityFactory = await uniswapMain.createSwapFactory();
 
-  const tradeContext = await uniswapLiquidityFactory.trade('0.000000000000000023', TradeDirection.input);
+  uniswapLiquidityFactory.quoteChanged$.subscribe(
+    (quote) => {
+      console.log("new quote!", quote.baseConvertRequest);
+    }
+  );
 
-  console.log(tradeContext);
+  let tradeContext = uniswapLiquidityFactory.trade('3', TradeDirection.input);
+  tradeContext = uniswapLiquidityFactory.trade('30', TradeDirection.input);
+  tradeContext = uniswapLiquidityFactory.trade('300', TradeDirection.input);
+  tradeContext = uniswapLiquidityFactory.trade('3000', TradeDirection.input);
+
+  console.log((await tradeContext).baseConvertRequest);
+
 
 };
 
