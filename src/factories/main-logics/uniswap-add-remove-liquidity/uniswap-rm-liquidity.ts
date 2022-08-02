@@ -249,7 +249,8 @@ export class UniswapRmLiquidity {
 
       if (
         tradeInfo.tokenAPerLpToken !== this._currentRmLiquidityInfoContext.tokenAPerLpToken ||
-        tradeInfo.tokenBPerLpToken !== this._currentRmLiquidityInfoContext.tokenBPerLpToken
+        tradeInfo.tokenBPerLpToken !== this._currentRmLiquidityInfoContext.tokenBPerLpToken ||
+        tradeInfo.lpTokenBalance !== this._currentRmLiquidityInfoContext.lpTokenBalance
       ) {
         this._currentRmLiquidityInfoContext = this.buildCurrentInfoContext(tradeInfo);
         this.quoteChanged$.next(tradeInfo);
