@@ -1,14 +1,13 @@
 import { UniswapVersion } from '../enums/uniswap-version';
 import { UniswapPairSettings } from '../factories/pair/models/uniswap-pair-settings';
 import { UniswapAddRmLiquidityFactory } from '../factories/main-logics/uniswap-add-remove-liquidity/uniswap-add-rm-liquidity.factory';
-import BigNumber from 'bignumber.js';
 
 const routeTest = async () => {
   const ethereumAddress = '0xa207aDd901BF900C81Feb04D33968a0132bD68DA';
 
   const uniswapMain = new UniswapAddRmLiquidityFactory({
-    tokenATokenContractAddress: '0x451002da4394e8ff717Ff6Dc4F48BFfA6139A858_ETH',
-    tokenBTokenContractAddress: '0x8a1aaE68BA6DDbfaDe8359f18321e87d8ab8Fae9',
+    tokenATokenContractAddress: '0x8a1aaE68BA6DDbfaDe8359f18321e87d8ab8Fae9',
+    tokenBTokenContractAddress: '0xC285cc080a40aE0Fb4Ae198b2FB5cbdb4A7F3E66',
     ethereumAddress,
     chainId: 80001,
     providerUrl: 'https://polygon-mumbai.g.alchemy.com/v2/LOsCmKKqyJojD5OsLyqlAFVquaysK2Wb',
@@ -44,19 +43,24 @@ const routeTest = async () => {
 
   const uniswapLiquidityFactory = await uniswapMain.createRemoveLiquidityFactory();
 
-  // const rmTradeInfo = await uniswapLiquidityFactory.getRmTradeInfo();
+  const rmTradeInfo = await uniswapLiquidityFactory.getRmTradeInfo();
 
-  const transaction = await uniswapLiquidityFactory.buildTransaction(
-    new BigNumber('0.000000000447213585'), new BigNumber('0.000000000000000023'), new BigNumber('0.009999999765446791')
-  )
+  uniswapLiquidityFactory?.quoteChanged$.subscribe(
+    (quote) => {
+      console.log("new quote desuyo", quote);
+    }
+  );
+
+  // const transaction = await uniswapLiquidityFactory.buildTransaction(
+  //   new BigNumber('0.000000000447213585'), new BigNumber('0.000000000000000023'), new BigNumber('0.009999999765446791')
+  // )
 
   // const approvalTransaction = await uniswapLiquidityFactory.buildApproveAllowanceTransaction(
   //   UniswapVersion.v2, '0xE7fFCdBe826F4031DFF1Bfeb4E2b751FEBFC3B82','7.071067811865475234', 18
   // )
 
-  // console.log(rmTradeInfo);
-  console.log(transaction);
-  // console.log(approvalTransaction);
+  console.log(rmTradeInfo);
+  // console.log(transaction);
 
 };
 

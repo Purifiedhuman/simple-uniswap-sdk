@@ -58,9 +58,9 @@ export class UniswapRmLiquidity {
    * Destroy the trade instance watchers + subscriptions
    */
   public destroy(): void {
-    for (let i = 0; i < this.quoteChanged$.observers.length; i++) {
-      this.quoteChanged$.observers[i].complete();
-    }
+    // for (let i = 0; i < this.quoteChanged$.observers.length; i++) {
+    //   this.quoteChanged$.observers[i].complete();
+    // }
 
     this.unwatchTradePrice();
   }
@@ -71,10 +71,11 @@ export class UniswapRmLiquidity {
    */
   public async getRmTradeInfo(
   ): Promise<UniswapRmLiquidityInfoContext> {
-    this.destroy();
-
     const tradeInfo = await this.findPairRmTradeInfo();
-    this._currentRmLiquidityInfoContext = this.buildCurrentInfoContext(tradeInfo);
+
+    if(!this._watchingBlocks){
+      this._currentRmLiquidityInfoContext = this.buildCurrentInfoContext(tradeInfo);
+    }
 
     this.watchTradePrice();
 
