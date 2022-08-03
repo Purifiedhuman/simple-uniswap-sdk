@@ -1365,7 +1365,7 @@ export class UniswapRouterFactory {
     const contractCallResults = await this._multicall.call(contractCallContext);
 
     let isPairReversed = false;
-    let invalidPair = true;
+    let isFirstSupplier = false;
     let token0Address: null | string = null;
     // let token1Address: null | string = null;
     let weiToken0ReserveInHex: null | string = null;
@@ -1413,7 +1413,7 @@ export class UniswapRouterFactory {
 
     let etherTotalSupply = new BigNumber(0);
     if (weiToken0ReserveInHex && weiToken1ReserveInHex) {
-      invalidPair = false;
+      isFirstSupplier = false;
       etherTotalSupply = formatEther(new BigNumber(weiTotalSupplyInHex ?? 0));
       if (token0Address === removeEthFromContractAddress(this._fromToken.contractAddress)) {
         isPairReversed = false;
@@ -1421,11 +1421,13 @@ export class UniswapRouterFactory {
         isPairReversed = true;
       }
     } else {
-      invalidPair = true;
+      isFirstSupplier = true;
     }
 
-    if (invalidPair) {
-      //guard condition, exit immediately if pair is invalid
+    if (isFirstSupplier) {
+      //guard condition, exit immediately if pair is not supplied before
+      const allowanceAndBalancesForTokens = await this.getAllowanceAndBalanceForTokens();
+      
       return {
         uniswapVersion: UniswapVersion.v2, //hardcode, no support for v3
         lpToken: undefined,
@@ -1434,9 +1436,9 @@ export class UniswapRouterFactory {
         tokenBPerLpToken: '',
         allowanceA: '',
         allowanceB: '',
-        estimatedTokenAOwned: '',
+        estimatedTokenAOwned: allowanceAndBalancesForTokens.fromToken.allowanceV2,
         estimatedTokenBOwned: '',
-        isFirstSupplier: false,
+        isFirstSupplier,
         totalPoolLpToken: '',
         selfPoolLpToken: '',
       };
