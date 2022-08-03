@@ -10,11 +10,10 @@ import { Transaction } from '../../pair/models/transaction';
 import { UniswapPairContractFactoryV2 } from '../../pair/v2/uniswap-pair-contract.factory.v2';
 import { UniswapRouterFactory } from '../../router/uniswap-router.factory';
 import { Token } from '../../token/models/token';
+import { UniswapAddLiquidityInfoContext } from '../models/uniswap-add-liquidity-info-context';
 import { UniswapAddRmPairFactoryContexts } from '../models/uniswap-add-rm-pair-factory-context';
-import { UniswapRmLiquidityInfoContext } from '../models/uniswap-rm-liquidity-info-context';
 
-export class UniswapRmLiquidity {
-
+export class UniswapAddLiquidityRatioBased {
   private _uniswapRouterFactory = new UniswapRouterFactory(
     this._coinGecko,
     this._uniswapPairFactoryContext.ethereumAddress,
@@ -25,8 +24,8 @@ export class UniswapRmLiquidity {
   );
 
   private _watchingBlocks = false;
-  private _currentRmLiquidityInfoContext: UniswapRmLiquidityInfoContext | undefined;
-  public quoteChanged$: Subject<UniswapRmLiquidityInfoContext> = new Subject<UniswapRmLiquidityInfoContext>();
+  private _currentAddLiquidityInfoContext: UniswapAddLiquidityInfoContext | undefined;
+  public quoteChanged$: Subject<UniswapAddLiquidityInfoContext> = new Subject<UniswapAddLiquidityInfoContext>();
 
   constructor(
     private _coinGecko: CoinGecko,
@@ -55,13 +54,9 @@ export class UniswapRmLiquidity {
   }
 
   /**
-   * Destroy the trade instance watchers + subscriptions
+   * Stop the block watcher
    */
   public destroy(): void {
-    // for (let i = 0; i < this.quoteChanged$.observers.length; i++) {
-    //   this.quoteChanged$.observers[i].complete();
-    // }
-
     this.unwatchTradePrice();
   }
 
@@ -69,12 +64,12 @@ export class UniswapRmLiquidity {
    * Get trade info - this will return the info pertinent to remove liquidity
    * @param amount The amount you want to swap
    */
-  public async getRmTradeInfo(
-  ): Promise<UniswapRmLiquidityInfoContext> {
-    const tradeInfo = await this.findPairRmTradeInfo();
+  public async getAddLiquidityTradeInfo(
+  ): Promise<UniswapAddLiquidityInfoContext> {
+    const tradeInfo = await this.findPairAddTradeInfo();
 
-    if (!this._watchingBlocks) {
-      this._currentRmLiquidityInfoContext = this.buildCurrentInfoContext(tradeInfo);
+    if(!this._watchingBlocks){
+      this._currentAddLiquidityInfoContext = this.buildCurrentInfoContext(tradeInfo);
     }
 
     this.watchTradePrice();
@@ -181,26 +176,28 @@ export class UniswapRmLiquidity {
    * Build the current trade context
    * @param trade The trade context
    */
-  private buildCurrentInfoContext(trade: UniswapRmLiquidityInfoContext): UniswapRmLiquidityInfoContext {
+  private buildCurrentInfoContext(trade: UniswapAddLiquidityInfoContext): UniswapAddLiquidityInfoContext {
     return deepClone({
       uniswapVersion: trade.uniswapVersion,
       lpToken: trade.lpToken,
       lpTokenBalance: trade.lpTokenBalance,
-      poolShare: trade.poolShare,
       tokenAPerLpToken: trade.tokenAPerLpToken,
       tokenBPerLpToken: trade.tokenBPerLpToken,
       estimatedTokenAOwned: trade.estimatedTokenAOwned,
       estimatedTokenBOwned: trade.estimatedTokenBOwned,
-      allowance: trade.allowance,
-      invalidPair: trade.invalidPair
+      allowanceA: trade.allowanceA,
+      allowanceB: trade.allowanceB,
+      isFirstSupplier: trade.isFirstSupplier,
+      selfPoolLpToken: trade.selfPoolLpToken,
+      totalPoolLpToken: trade.totalPoolLpToken
     });
   }
 
   /**
    * finds the remove trade information
    */
-  private async findPairRmTradeInfo(): Promise<UniswapRmLiquidityInfoContext> {
-    return await this._routes.getRmLiquidityQuote();
+  private async findPairAddTradeInfo(): Promise<UniswapAddLiquidityInfoContext> {
+    return await this._routes.getAddLiquidityRatioBasedQuote();
   }
 
   /**
@@ -232,15 +229,15 @@ export class UniswapRmLiquidity {
    * Handle new block for the trade price moving automatically emitting the stream if it changes
    */
   private async handleNewBlock(): Promise<void> {
-    if (this.quoteChanged$.observers.length > 0 && this._currentRmLiquidityInfoContext) {
-      const tradeInfo = await this.getRmTradeInfo();
+    if (this.quoteChanged$.observers.length > 0 && this._currentAddLiquidityInfoContext) {
+      const tradeInfo = await this.getAddLiquidityTradeInfo();
 
       if (
-        tradeInfo.tokenAPerLpToken !== this._currentRmLiquidityInfoContext.tokenAPerLpToken ||
-        tradeInfo.tokenBPerLpToken !== this._currentRmLiquidityInfoContext.tokenBPerLpToken ||
-        tradeInfo.lpTokenBalance !== this._currentRmLiquidityInfoContext.lpTokenBalance
+        tradeInfo.tokenAPerLpToken !== this._currentAddLiquidityInfoContext.tokenAPerLpToken ||
+        tradeInfo.tokenBPerLpToken !== this._currentAddLiquidityInfoContext.tokenBPerLpToken ||
+        tradeInfo.lpTokenBalance !== this._currentAddLiquidityInfoContext.lpTokenBalance
       ) {
-        this._currentRmLiquidityInfoContext = this.buildCurrentInfoContext(tradeInfo);
+        this._currentAddLiquidityInfoContext = this.buildCurrentInfoContext(tradeInfo);
         this.quoteChanged$.next(tradeInfo);
       }
 

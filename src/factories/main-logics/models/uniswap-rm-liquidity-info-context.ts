@@ -11,4 +11,5 @@ export interface UniswapRmLiquidityInfoContext {
   estimatedTokenBOwned: string;
   poolShare: string;
   allowance: string;
+  invalidPair: boolean;
 }

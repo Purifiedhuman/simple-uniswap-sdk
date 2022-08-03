@@ -2,11 +2,11 @@ import BigNumber from 'bignumber.js';
 import {
   CallReturnContext,
   ContractCallContext,
-  ContractCallResults,
+  ContractCallResults
 } from 'ethereum-multicall';
 import {
   ExactInputSingleRequest,
-  ExactOutputSingleRequest,
+  ExactOutputSingleRequest
 } from '../../ABI/types/uniswap-router-v3';
 import { CoinGecko } from '../../coin-gecko';
 import { Constants } from '../../common/constants';
@@ -19,7 +19,7 @@ import {
   ETH_SYMBOL,
   isNativeEth,
   removeEthFromContractAddress,
-  turnTokenIntoEthForResponse,
+  turnTokenIntoEthForResponse
 } from '../../common/tokens/eth';
 import { USDC } from '../../common/tokens/usdc';
 import { USDT } from '../../common/tokens/usdt';
@@ -40,6 +40,8 @@ import { EthersProvider } from '../../ethers-provider';
 import { uniswapContracts } from '../../uniswap-contract-context/get-uniswap-contracts';
 import { UniswapContractContextV2 } from '../../uniswap-contract-context/uniswap-contract-context-v2';
 import { UniswapContractContextV3 } from '../../uniswap-contract-context/uniswap-contract-context-v3';
+import { UniswapAddLiquidityInfoContext } from '../main-logics/models/uniswap-add-liquidity-info-context';
+import { UniswapRmLiquidityInfoContext } from '../main-logics/models/uniswap-rm-liquidity-info-context';
 import { TradeDirection } from '../pair/models/trade-direction';
 import { Transaction } from '../pair/models/transaction';
 import { UniswapPairSettings } from '../pair/models/uniswap-pair-settings';
@@ -48,10 +50,10 @@ import { Token } from '../token/models/token';
 import { TokensFactory } from '../token/tokens.factory';
 import { UniswapContractFactoryV2 } from '../uniswap-factory/v2/uniswap-contract.factory.v2';
 import { RouterDirection } from './enums/router-direction';
+import { AddLiquidityQuote } from './models/add-liquidity-quote';
 import { AllPossibleRoutes } from './models/all-possible-routes';
 import { BestRouteQuotes } from './models/best-route-quotes';
 import { LiquidityInfo } from './models/liquidity-info';
-import { AddLiquidityQuote } from './models/add-liquidity-quote';
 import { RouteContext } from './models/route-context';
 import { RouteQuote } from './models/route-quote';
 import { RouteQuoteTradeContext } from './models/route-quote-trade-context';
@@ -60,10 +62,9 @@ import { UniswapRouterContractFactoryV2 } from './v2/uniswap-router-contract.fac
 import {
   FeeAmount,
   feeToPercent,
-  percentToFeeAmount,
+  percentToFeeAmount
 } from './v3/enums/fee-amount-v3';
 import { UniswapRouterContractFactoryV3 } from './v3/uniswap-router-contract.factory.v3';
-import { RmLiquidityQuote } from './models/rm-liquidity-quote';
 
 export class UniswapRouterFactory {
   private _multicall = new CustomMulticall(
@@ -1107,7 +1108,7 @@ export class UniswapRouterFactory {
   /**
    * Get remove liquidity quote
    */
-  public async getRmLiquidityQuote(): Promise<RmLiquidityQuote> {
+  public async getRmLiquidityQuote(): Promise<UniswapRmLiquidityInfoContext> {
     const routes = await this.getAllPossibleRoutes(true);
 
     const contractCallContext: ContractCallContext<RouteContext[]>[] = [];
@@ -1231,13 +1232,15 @@ export class UniswapRouterFactory {
       //guard condition, exit immediately if pair is invalid
       return {
         uniswapVersion: UniswapVersion.v2, //hardcode, no support for v3
-        invalidPair,
         lpToken: undefined,
         lpTokenBalance: '',
-        poolShare: '',
         tokenAPerLpToken: '',
         tokenBPerLpToken: '',
-        allowance: ''
+        estimatedTokenAOwned: '',
+        estimatedTokenBOwned: '',
+        poolShare: '',
+        allowance: '',
+        invalidPair: true
       };
     }
 
@@ -1282,13 +1285,215 @@ export class UniswapRouterFactory {
 
     return {
       uniswapVersion: UniswapVersion.v2, //hardcode, no support for v3
-      invalidPair,
       lpToken: token[0],
       lpTokenBalance: formattedLpBalance,
       poolShare: poolShare,
       tokenAPerLpToken: isPairReversed ? etherTokenAAndTokenBPerLp.perLpEstimatedToken1 : etherTokenAAndTokenBPerLp.perLpEstimatedToken0,
       tokenBPerLpToken: isPairReversed ? etherTokenAAndTokenBPerLp.perLpEstimatedToken0 : etherTokenAAndTokenBPerLp.perLpEstimatedToken1,
+      estimatedTokenAOwned: isPairReversed
+        ? new BigNumber(formattedLpBalance).multipliedBy(etherTokenAAndTokenBPerLp.perLpEstimatedToken1).toFixed(this._toToken.decimals)
+        : new BigNumber(formattedLpBalance).multipliedBy(etherTokenAAndTokenBPerLp.perLpEstimatedToken0).toFixed(this._fromToken.decimals),
+      estimatedTokenBOwned: isPairReversed
+        ? new BigNumber(formattedLpBalance).multipliedBy(etherTokenAAndTokenBPerLp.perLpEstimatedToken0).toFixed(this._fromToken.decimals)
+        : new BigNumber(formattedLpBalance).multipliedBy(etherTokenAAndTokenBPerLp.perLpEstimatedToken1).toFixed(this._toToken.decimals),
       allowance: allowanceAndBalanceOfForTokens[0].allowanceAndBalanceOf.allowanceV2,
+      invalidPair,
+    };
+  }
+
+  /**
+   * Get remove liquidity quote
+   */
+  public async getAddLiquidityRatioBasedQuote(): Promise<UniswapAddLiquidityInfoContext> {
+    const routes = await this.getAllPossibleRoutes(true);
+
+    const contractCallContext: ContractCallContext<RouteContext[]>[] = [];
+    let pairAddress = '';
+    let lpTokenDecimals = 18; //default
+
+    if (this._settings.uniswapVersions.includes(UniswapVersion.v2)) {
+
+      //directOverride ensure tokenA and tokenB direct pair only (0 or 1 in length)
+      for (let i = 0; i < routes.v2.length; i++) {
+        const routeCombo = routes.v2[i].route.map((c) => {
+          return removeEthFromContractAddress(c.contractAddress);
+        });
+
+        pairAddress = await this._uniswapContractFactoryV2.getPair(routeCombo[0], routeCombo[1]);
+
+        contractCallContext.push({
+          reference: `${UniswapVersion.v2}-pair`,
+          contractAddress: pairAddress,
+          abi: UniswapContractContextV2.pairAbi,
+          calls: [
+            {
+              reference: `token0`,
+              methodName: 'token0',
+              methodParameters: [],
+            },
+            {
+              reference: `token1`,
+              methodName: 'token1',
+              methodParameters: [],
+            },
+            {
+              reference: `getReserves`,
+              methodName: 'getReserves',
+              methodParameters: [],
+            },
+            {
+              reference: `totalSupply`,
+              methodName: 'totalSupply',
+              methodParameters: [],
+            },
+            {
+              reference: `balanceOf`,
+              methodName: 'balanceOf',
+              methodParameters: [this._ethereumAddress],
+            },
+            {
+              reference: `decimals`,
+              methodName: 'decimals',
+              methodParameters: [],
+            }
+          ],
+          context: routes.v2,
+        });
+      }
+    }
+
+    const contractCallResults = await this._multicall.call(contractCallContext);
+
+    let isPairReversed = false;
+    let invalidPair = true;
+    let token0Address: null | string = null;
+    // let token1Address: null | string = null;
+    let weiToken0ReserveInHex: null | string = null;
+    let weiToken1ReserveInHex: null | string = null;
+    let weiTotalSupplyInHex: null | string = null;
+    let weiBalanceOfInHex: null | string = null;
+
+
+    for (const key in contractCallResults.results) {
+      const contractCallReturnContext = contractCallResults.results[key];
+      if (contractCallReturnContext) {
+        for (let i = 0; i < contractCallReturnContext.callsReturnContext.length; i++) {
+          const callReturnContext = contractCallReturnContext.callsReturnContext[i];
+
+          if (!callReturnContext.success) {
+            continue;
+          }
+
+          switch (callReturnContext.reference) {
+            case `token0`:
+              token0Address = callReturnContext.returnValues[0];
+              break;
+            case `token1`:
+              // token1Address = callReturnContext.returnValues[0];
+              break;
+            case `getReserves`:
+              weiToken0ReserveInHex = callReturnContext.returnValues[0].hex;
+              weiToken1ReserveInHex = callReturnContext.returnValues[1].hex;
+              // blockTimestampLast = callReturnContext.returnValues[2];
+              break;
+            case `totalSupply`:
+              weiTotalSupplyInHex = callReturnContext.returnValues[0].hex;
+              break;
+            case `balanceOf`:
+              weiBalanceOfInHex = callReturnContext.returnValues[0].hex;
+              break;
+            case `decimals`:
+              lpTokenDecimals = callReturnContext.returnValues[0];
+              break;
+          }
+
+        }
+      }
+    }
+
+    let etherTotalSupply = new BigNumber(0);
+    if (weiToken0ReserveInHex && weiToken1ReserveInHex) {
+      invalidPair = false;
+      etherTotalSupply = formatEther(new BigNumber(weiTotalSupplyInHex ?? 0));
+      if (token0Address === removeEthFromContractAddress(this._fromToken.contractAddress)) {
+        isPairReversed = false;
+      } else if (token0Address === removeEthFromContractAddress(this._toToken.contractAddress)) {
+        isPairReversed = true;
+      }
+    } else {
+      invalidPair = true;
+    }
+
+    if (invalidPair) {
+      //guard condition, exit immediately if pair is invalid
+      return {
+        uniswapVersion: UniswapVersion.v2, //hardcode, no support for v3
+        lpToken: undefined,
+        lpTokenBalance: '',
+        tokenAPerLpToken: '',
+        tokenBPerLpToken: '',
+        allowanceA: '',
+        allowanceB: '',
+        estimatedTokenAOwned: '',
+        estimatedTokenBOwned: '',
+        isFirstSupplier: false,
+        totalPoolLpToken: '',
+        selfPoolLpToken: '',
+      };
+    }
+
+    let etherReserve0 = new BigNumber(0);
+    let etherReserve1 = new BigNumber(0);
+
+    const token0Decimals = isPairReversed
+      ? this._toToken.decimals
+      : this._fromToken.decimals;
+
+    const token1Decimals = isPairReversed
+      ? this._fromToken.decimals
+      : this._toToken.decimals;
+
+    etherReserve0 = new BigNumber(weiToken0ReserveInHex ?? 0).shiftedBy(token0Decimals * -1);
+    etherReserve1 = new BigNumber(weiToken1ReserveInHex ?? 0).shiftedBy(token1Decimals * -1);
+    const formattedLpBalance = new BigNumber(weiBalanceOfInHex ?? 0).shiftedBy(lpTokenDecimals * -1).toFixed(lpTokenDecimals);
+
+    const etherTokenAAndTokenBPerLp = this.calculatesTokenAAndTokenBPerLp(
+      etherReserve0,
+      etherReserve1,
+      etherTotalSupply,
+    );
+
+    const poolShare = this.calculatesPoolShare(new BigNumber(formattedLpBalance), etherTotalSupply);
+
+    //Check allowance
+    const allowanceAndBalanceOfForTokens = await this._tokensFactory.getAllowanceAndBalanceOfForContracts(
+      this._ethereumAddress,
+      [pairAddress],
+      true
+    );
+
+    const tokensFactory = new TokensFactory(
+      this._ethersProvider,
+      this._settings?.customNetwork
+    );
+
+    const token = await tokensFactory.getTokens([
+      pairAddress
+    ]);
+
+    return {
+      uniswapVersion: UniswapVersion.v2, //hardcode, no support for v3
+      lpToken: token[0],
+      lpTokenBalance: formattedLpBalance,
+      tokenAPerLpToken: isPairReversed ? etherTokenAAndTokenBPerLp.perLpEstimatedToken1 : etherTokenAAndTokenBPerLp.perLpEstimatedToken0,
+      tokenBPerLpToken: isPairReversed ? etherTokenAAndTokenBPerLp.perLpEstimatedToken0 : etherTokenAAndTokenBPerLp.perLpEstimatedToken1,
+      allowanceA: allowanceAndBalanceOfForTokens[0].allowanceAndBalanceOf.allowanceV2,
+      allowanceB: '',
+      estimatedTokenAOwned: '',
+      estimatedTokenBOwned: '',
+      isFirstSupplier: false,
+      totalPoolLpToken: '',
+      selfPoolLpToken: '',
     };
   }
 
