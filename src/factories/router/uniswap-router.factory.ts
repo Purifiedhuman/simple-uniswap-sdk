@@ -1463,7 +1463,7 @@ export class UniswapRouterFactory {
       etherTotalSupply,
     );
 
-    const poolShare = this.calculatesPoolShare(new BigNumber(formattedLpBalance), etherTotalSupply);
+    // const poolShare = this.calculatesPoolShare(new BigNumber(formattedLpBalance), etherTotalSupply);
 
     //Check allowance
     const allowanceAndBalanceOfForTokens = await this._tokensFactory.getAllowanceAndBalanceOfForContracts(
