@@ -1368,7 +1368,7 @@ export class UniswapRouterFactory {
     let isPairReversed = false;
     let isFirstSupplier = false;
     let token0Address: null | string = null;
-    let token1Address: null | string = null;
+    // let token1Address: null | string = null;
     let weiToken0ReserveInHex: null | string = null;
     let weiToken1ReserveInHex: null | string = null;
     let weiTotalSupplyInHex: null | string = null;
@@ -1390,7 +1390,7 @@ export class UniswapRouterFactory {
               token0Address = callReturnContext.returnValues[0];
               break;
             case `token1`:
-              token1Address = callReturnContext.returnValues[0];
+              // token1Address = callReturnContext.returnValues[0];
               break;
             case `getReserves`:
               weiToken0ReserveInHex = callReturnContext.returnValues[0].hex;
@@ -1425,20 +1425,28 @@ export class UniswapRouterFactory {
       isFirstSupplier = true;
     }
 
+    let allowanceAndBalanceOfForTokens: TokenWithAllowanceInfo[] = [];
+    //Check allowance
+    allowanceAndBalanceOfForTokens = await this._tokensFactory.getAllowanceAndBalanceOfForContracts(
+      this._ethereumAddress,
+      [this._fromToken.contractAddress, this._toToken.contractAddress],
+      true
+    );
+
     if (isFirstSupplier) {
       //guard condition, exit immediately if pair is not supplied before
-      const allowanceAndBalancesForTokens = await this.getAllowanceAndBalanceForTokens();
-
       return {
         uniswapVersion: UniswapVersion.v2, //hardcode, no support for v3
         lpToken: undefined,
         lpTokenBalance: '',
         tokenAPerLpToken: '',
         tokenBPerLpToken: '',
-        allowanceA: '',
-        allowanceB: '',
-        estimatedTokenAOwned: allowanceAndBalancesForTokens.fromToken.allowanceV2,
+        allowanceA: allowanceAndBalanceOfForTokens[0].allowanceAndBalanceOf.allowanceV2,
+        allowanceB: allowanceAndBalanceOfForTokens[1].allowanceAndBalanceOf.allowanceV2,
+        estimatedTokenAOwned: '',
         estimatedTokenBOwned: '',
+        tokenAPerTokenB: '',
+        tokenBPerTokenA: '',
         isFirstSupplier,
         totalPoolLpToken: '',
         selfPoolLpToken: '',
@@ -1466,17 +1474,6 @@ export class UniswapRouterFactory {
       etherTotalSupply,
     );
 
-    let allowanceAndBalanceOfForTokens: TokenWithAllowanceInfo[] = [];
-    if (token0Address && token1Address) {
-      //Check allowance
-      allowanceAndBalanceOfForTokens = await this._tokensFactory.getAllowanceAndBalanceOfForContracts(
-        this._ethereumAddress,
-        [token0Address, token1Address],
-        true
-      );
-    }
-
-
     const tokensFactory = new TokensFactory(
       this._ethersProvider,
       this._settings?.customNetwork
@@ -1492,14 +1489,16 @@ export class UniswapRouterFactory {
       lpTokenBalance: formattedLpBalance,
       tokenAPerLpToken: isPairReversed ? etherTokenAAndTokenBPerLp.perLpEstimatedToken1 : etherTokenAAndTokenBPerLp.perLpEstimatedToken0,
       tokenBPerLpToken: isPairReversed ? etherTokenAAndTokenBPerLp.perLpEstimatedToken0 : etherTokenAAndTokenBPerLp.perLpEstimatedToken1,
-      allowanceA: isPairReversed ? allowanceAndBalanceOfForTokens[1].allowanceAndBalanceOf.allowanceV2 : allowanceAndBalanceOfForTokens[0].allowanceAndBalanceOf.allowanceV2,
-      allowanceB: isPairReversed ? allowanceAndBalanceOfForTokens[0].allowanceAndBalanceOf.allowanceV2 : allowanceAndBalanceOfForTokens[1].allowanceAndBalanceOf.allowanceV2,
+      allowanceA: allowanceAndBalanceOfForTokens[0].allowanceAndBalanceOf.allowanceV2,
+      allowanceB: allowanceAndBalanceOfForTokens[1].allowanceAndBalanceOf.allowanceV2,
       estimatedTokenAOwned: isPairReversed
         ? new BigNumber(formattedLpBalance).multipliedBy(etherTokenAAndTokenBPerLp.perLpEstimatedToken1).toFixed(this._toToken.decimals)
         : new BigNumber(formattedLpBalance).multipliedBy(etherTokenAAndTokenBPerLp.perLpEstimatedToken0).toFixed(this._fromToken.decimals),
       estimatedTokenBOwned: isPairReversed
         ? new BigNumber(formattedLpBalance).multipliedBy(etherTokenAAndTokenBPerLp.perLpEstimatedToken0).toFixed(this._fromToken.decimals)
         : new BigNumber(formattedLpBalance).multipliedBy(etherTokenAAndTokenBPerLp.perLpEstimatedToken1).toFixed(this._toToken.decimals),
+      tokenAPerTokenB: isPairReversed ? etherTokenAAndTokenBPerLp.perToken1EstimatedToken0 : etherTokenAAndTokenBPerLp.perToken0EstimatedToken1,
+      tokenBPerTokenA: isPairReversed ? etherTokenAAndTokenBPerLp.perToken0EstimatedToken1 : etherTokenAAndTokenBPerLp.perToken1EstimatedToken0,
       isFirstSupplier,
       totalPoolLpToken: etherTotalSupply.toFixed(lpTokenDecimals),
       selfPoolLpToken: formattedLpBalance,
@@ -2729,16 +2728,24 @@ export class UniswapRouterFactory {
   ): {
     perLpEstimatedToken0: string;
     perLpEstimatedToken1: string;
+    perToken0EstimatedToken1: string,
+    perToken1EstimatedToken0: string;
   } {
     let perLpEstimatedToken0 = new BigNumber(0);
     let perLpEstimatedToken1 = new BigNumber(0);
+    let perToken0EstimatedToken1 = new BigNumber(0);
+    let perToken1EstimatedToken0 = new BigNumber(0);
 
     perLpEstimatedToken0 = new BigNumber(1).multipliedBy(etherReserve0).div(etherTotalSupply);
     perLpEstimatedToken1 = new BigNumber(1).multipliedBy(etherReserve1).div(etherTotalSupply);
+    perToken0EstimatedToken1 = perLpEstimatedToken0.div(perLpEstimatedToken1);
+    perToken1EstimatedToken0 = perLpEstimatedToken1.div(perLpEstimatedToken0);
 
     return {
       perLpEstimatedToken0: perLpEstimatedToken0.toFixed(),
-      perLpEstimatedToken1: perLpEstimatedToken1.toFixed()
+      perLpEstimatedToken1: perLpEstimatedToken1.toFixed(),
+      perToken0EstimatedToken1: perToken0EstimatedToken1.toFixed(),
+      perToken1EstimatedToken0: perToken1EstimatedToken0.toFixed()
     };
   }
 

@@ -201,6 +201,8 @@ export class UniswapAddLiquidityRatioBased {
       tokenBPerLpToken: trade.tokenBPerLpToken,
       estimatedTokenAOwned: trade.estimatedTokenAOwned,
       estimatedTokenBOwned: trade.estimatedTokenBOwned,
+      tokenAPerTokenB: trade.tokenAPerTokenB,
+      tokenBPerTokenA: trade.tokenBPerTokenA,
       allowanceA: trade.allowanceA,
       allowanceB: trade.allowanceB,
       isFirstSupplier: trade.isFirstSupplier,

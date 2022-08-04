@@ -7,7 +7,7 @@ const routeTest = async () => {
 
   const uniswapMain = new UniswapAddRmLiquidityFactory({
     tokenATokenContractAddress: '0x8a1aaE68BA6DDbfaDe8359f18321e87d8ab8Fae9',
-    tokenBTokenContractAddress: '0x451002da4394e8ff717Ff6Dc4F48BFfA6139A858_ETH',
+    tokenBTokenContractAddress: '0xC285cc080a40aE0Fb4Ae198b2FB5cbdb4A7F3E66',
     ethereumAddress,
     chainId: 80001,
     providerUrl: 'https://polygon-mumbai.g.alchemy.com/v2/LOsCmKKqyJojD5OsLyqlAFVquaysK2Wb',
