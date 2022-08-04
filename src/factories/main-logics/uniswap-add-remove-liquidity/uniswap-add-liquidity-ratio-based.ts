@@ -3,17 +3,29 @@ import { Subject } from 'rxjs';
 import { CoinGecko } from '../../../coin-gecko';
 import { Constants } from '../../../common/constants';
 import { deepClone } from '../../../common/utils/deep-clone';
-import { hexlify } from '../../../common/utils/hexlify';
 import { UniswapVersion } from '../../../enums/uniswap-version';
 import { uniswapContracts } from '../../../uniswap-contract-context/get-uniswap-contracts';
 import { Transaction } from '../../pair/models/transaction';
-import { UniswapPairContractFactoryV2 } from '../../pair/v2/uniswap-pair-contract.factory.v2';
 import { UniswapRouterFactory } from '../../router/uniswap-router.factory';
 import { Token } from '../../token/models/token';
+import { TokenFactory } from '../../token/token.factory';
 import { UniswapAddLiquidityInfoContext } from '../models/uniswap-add-liquidity-info-context';
 import { UniswapAddRmPairFactoryContexts } from '../models/uniswap-add-rm-pair-factory-context';
 
 export class UniswapAddLiquidityRatioBased {
+  private _fromTokenFactory = new TokenFactory(
+    this._uniswapPairFactoryContext.tokenA.contractAddress,
+    this._uniswapPairFactoryContext.ethersProvider,
+    this._uniswapPairFactoryContext.settings.customNetwork,
+    this._uniswapPairFactoryContext.settings.cloneUniswapContractDetails
+  );
+
+  private _toTokenFactory = new TokenFactory(
+    this._uniswapPairFactoryContext.tokenB.contractAddress,
+    this._uniswapPairFactoryContext.ethersProvider,
+    this._uniswapPairFactoryContext.settings.customNetwork
+  );
+
   private _uniswapRouterFactory = new UniswapRouterFactory(
     this._coinGecko,
     this._uniswapPairFactoryContext.ethereumAddress,
@@ -61,14 +73,14 @@ export class UniswapAddLiquidityRatioBased {
   }
 
   /**
-   * Get trade info - this will return the info pertinent to remove liquidity
+   * Get trade info - this will return the info pertinent to add liquidity
    * @param amount The amount you want to swap
    */
   public async getAddLiquidityTradeInfo(
   ): Promise<UniswapAddLiquidityInfoContext> {
     const tradeInfo = await this.findPairAddTradeInfo();
 
-    if(!this._watchingBlocks){
+    if (!this._watchingBlocks) {
       this._currentAddLiquidityInfoContext = this.buildCurrentInfoContext(tradeInfo);
     }
 
@@ -78,18 +90,16 @@ export class UniswapAddLiquidityRatioBased {
   }
 
   /**
-   * buildTransaction - build transaction to remove liquidity
-   * @param lpAmountEther The amount you want to remove
+   * buildTransaction - build transaction to add liquidity
    * @param tokenAAmountEther calculated tokenA amount
    * @param tokenBAmountEther calculated tokenB amount
    */
   public async buildTransaction(
-    lpAmountEther: BigNumber,
     tokenAAmountEther: BigNumber,
     tokenBAmountEther: BigNumber,
   ): Promise<Transaction> {
-    return await this._routes.generateRmLiquidityTransaction(
-      lpAmountEther, tokenAAmountEther, tokenBAmountEther
+    return await this._routes.generateAddLiquidityTransaction(
+      tokenAAmountEther, tokenBAmountEther
     );
   }
 
@@ -100,32 +110,38 @@ export class UniswapAddLiquidityRatioBased {
    */
   public async buildApproveAllowanceTransaction(
     uniswapVersion: UniswapVersion,
-    pairAddress: string,
-    etherAmountsToSend: string,
-    lpDecimals = 18
+    isFromToken: boolean
   ): Promise<Transaction> {
-    const pairContractFactory = new UniswapPairContractFactoryV2(
-      this._uniswapPairFactoryContext.ethersProvider,
-      pairAddress
-    );
+    let data;
+    if (isFromToken) {
+      data = this._fromTokenFactory.generateApproveAllowanceData(
+        uniswapVersion === UniswapVersion.v2
+          ? uniswapContracts.v2.getRouterAddress(
+            this._uniswapPairFactoryContext.settings.cloneUniswapContractDetails
+          )
+          : uniswapContracts.v3.getRouterAddress(
+            this._uniswapPairFactoryContext.settings.cloneUniswapContractDetails
+          ),
+        '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff'
+      );
+    } else {
+      data = this._toTokenFactory.generateApproveAllowanceData(
+        uniswapVersion === UniswapVersion.v2
+          ? uniswapContracts.v2.getRouterAddress(
+            this._uniswapPairFactoryContext.settings.cloneUniswapContractDetails
+          )
+          : uniswapContracts.v3.getRouterAddress(
+            this._uniswapPairFactoryContext.settings.cloneUniswapContractDetails
+          ),
+        '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff'
+      );
+    }
 
-    const allowanceToRequest = new BigNumber(etherAmountsToSend)
-      // .minus(etherAvailableAllowance)
-      .shiftedBy(lpDecimals)
-
-    const data = pairContractFactory.generateApproveAllowanceData(
-      uniswapVersion === UniswapVersion.v2
-        ? uniswapContracts.v2.getRouterAddress(
-          this._uniswapPairFactoryContext.settings.cloneUniswapContractDetails
-        )
-        : uniswapContracts.v3.getRouterAddress(
-          this._uniswapPairFactoryContext.settings.cloneUniswapContractDetails
-        ),
-      hexlify(allowanceToRequest)
-    );
 
     return {
-      to: pairAddress,
+      to: isFromToken
+        ? this.tokenA.contractAddress
+        : this.tokenB.contractAddress,
       from: this._uniswapPairFactoryContext.ethereumAddress,
       data,
       value: Constants.EMPTY_HEX_STRING,
@@ -194,7 +210,7 @@ export class UniswapAddLiquidityRatioBased {
   }
 
   /**
-   * finds the remove trade information
+   * finds the add trade information
    */
   private async findPairAddTradeInfo(): Promise<UniswapAddLiquidityInfoContext> {
     return await this._routes.getAddLiquidityRatioBasedQuote();

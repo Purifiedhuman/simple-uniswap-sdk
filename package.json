@@ -1,6 +1,6 @@
 {
   "name": "@purifiedhuman/simple-uniswap-sdk",
-  "version": "3.6.48",
+  "version": "3.6.49",
   "description": "Simple easy to understand SDK for uniswap which looks over best v2 and v3 to find you the best swap quote",
   "main": "dist/cjs/index.js",
   "module": "./dist/esm/index.js",
@@ -11,6 +11,7 @@
     "build:cjs": "tsc --module commonjs --outDir dist/cjs",
     "playground-swap": "node ./dist/cjs/__TEST-SCRIPT__/playground-swap.js",
     "playground-my-liquidity": "node ./dist/cjs/__TEST-SCRIPT__/playground-my-liquidity.js",
+    "playground-add-liquidity": "node ./dist/cjs/__TEST-SCRIPT__/playground-add-liquidity.js",
     "playground-rm-liquidity": "node ./dist/cjs/__TEST-SCRIPT__/playground-rm-liquidity.js",
     "watch": "tsc --module commonjs --outDir dist/cjs --watch",
     "test": "jest",

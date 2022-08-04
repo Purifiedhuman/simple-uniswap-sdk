@@ -4,6 +4,7 @@ import {
   ContractCallContext,
   ContractCallResults
 } from 'ethereum-multicall';
+import { TokenWithAllowanceInfo } from '../..';
 import {
   ExactInputSingleRequest,
   ExactOutputSingleRequest
@@ -908,7 +909,7 @@ export class UniswapRouterFactory {
     let etherTotalSupply = new BigNumber(0);
     if (weiToken0ReserveInHex && weiToken1ReserveInHex) {
       isFirstSupplier = false;
-      etherTotalSupply = formatEther(new BigNumber(weiTotalSupplyInHex ?? 0));
+      etherTotalSupply = new BigNumber(weiTotalSupplyInHex ?? 0).shiftedBy(lpTokenDecimals * -1);
       if (direction === TradeDirection.input) {
         //TradeDirection is tokenA(tradeAmount) -> tokenB(expectedConvertQuoteHex), tokenA(_fromToken) = token0
         if (token0Address === removeEthFromContractAddress(this._fromToken.contractAddress)) {
@@ -1218,7 +1219,7 @@ export class UniswapRouterFactory {
     let etherTotalSupply = new BigNumber(0);
     if (weiToken0ReserveInHex && weiToken1ReserveInHex) {
       invalidPair = false;
-      etherTotalSupply = formatEther(new BigNumber(weiTotalSupplyInHex ?? 0));
+      etherTotalSupply = new BigNumber(weiTotalSupplyInHex ?? 0).shiftedBy(lpTokenDecimals * -1);
       if (token0Address === removeEthFromContractAddress(this._fromToken.contractAddress)) {
         isPairReversed = false;
       } else if (token0Address === removeEthFromContractAddress(this._toToken.contractAddress)) {
@@ -1367,7 +1368,7 @@ export class UniswapRouterFactory {
     let isPairReversed = false;
     let isFirstSupplier = false;
     let token0Address: null | string = null;
-    // let token1Address: null | string = null;
+    let token1Address: null | string = null;
     let weiToken0ReserveInHex: null | string = null;
     let weiToken1ReserveInHex: null | string = null;
     let weiTotalSupplyInHex: null | string = null;
@@ -1389,7 +1390,7 @@ export class UniswapRouterFactory {
               token0Address = callReturnContext.returnValues[0];
               break;
             case `token1`:
-              // token1Address = callReturnContext.returnValues[0];
+              token1Address = callReturnContext.returnValues[0];
               break;
             case `getReserves`:
               weiToken0ReserveInHex = callReturnContext.returnValues[0].hex;
@@ -1414,7 +1415,7 @@ export class UniswapRouterFactory {
     let etherTotalSupply = new BigNumber(0);
     if (weiToken0ReserveInHex && weiToken1ReserveInHex) {
       isFirstSupplier = false;
-      etherTotalSupply = formatEther(new BigNumber(weiTotalSupplyInHex ?? 0));
+      etherTotalSupply = new BigNumber(weiTotalSupplyInHex ?? 0).shiftedBy(lpTokenDecimals * -1);
       if (token0Address === removeEthFromContractAddress(this._fromToken.contractAddress)) {
         isPairReversed = false;
       } else if (token0Address === removeEthFromContractAddress(this._toToken.contractAddress)) {
@@ -1427,7 +1428,7 @@ export class UniswapRouterFactory {
     if (isFirstSupplier) {
       //guard condition, exit immediately if pair is not supplied before
       const allowanceAndBalancesForTokens = await this.getAllowanceAndBalanceForTokens();
-      
+
       return {
         uniswapVersion: UniswapVersion.v2, //hardcode, no support for v3
         lpToken: undefined,
@@ -1465,14 +1466,16 @@ export class UniswapRouterFactory {
       etherTotalSupply,
     );
 
-    // const poolShare = this.calculatesPoolShare(new BigNumber(formattedLpBalance), etherTotalSupply);
+    let allowanceAndBalanceOfForTokens: TokenWithAllowanceInfo[] = [];
+    if (token0Address && token1Address) {
+      //Check allowance
+      allowanceAndBalanceOfForTokens = await this._tokensFactory.getAllowanceAndBalanceOfForContracts(
+        this._ethereumAddress,
+        [token0Address, token1Address],
+        true
+      );
+    }
 
-    //Check allowance
-    const allowanceAndBalanceOfForTokens = await this._tokensFactory.getAllowanceAndBalanceOfForContracts(
-      this._ethereumAddress,
-      [pairAddress],
-      true
-    );
 
     const tokensFactory = new TokensFactory(
       this._ethersProvider,
@@ -1489,13 +1492,17 @@ export class UniswapRouterFactory {
       lpTokenBalance: formattedLpBalance,
       tokenAPerLpToken: isPairReversed ? etherTokenAAndTokenBPerLp.perLpEstimatedToken1 : etherTokenAAndTokenBPerLp.perLpEstimatedToken0,
       tokenBPerLpToken: isPairReversed ? etherTokenAAndTokenBPerLp.perLpEstimatedToken0 : etherTokenAAndTokenBPerLp.perLpEstimatedToken1,
-      allowanceA: allowanceAndBalanceOfForTokens[0].allowanceAndBalanceOf.allowanceV2,
-      allowanceB: '',
-      estimatedTokenAOwned: '',
-      estimatedTokenBOwned: '',
-      isFirstSupplier: false,
-      totalPoolLpToken: '',
-      selfPoolLpToken: '',
+      allowanceA: isPairReversed ? allowanceAndBalanceOfForTokens[1].allowanceAndBalanceOf.allowanceV2 : allowanceAndBalanceOfForTokens[0].allowanceAndBalanceOf.allowanceV2,
+      allowanceB: isPairReversed ? allowanceAndBalanceOfForTokens[0].allowanceAndBalanceOf.allowanceV2 : allowanceAndBalanceOfForTokens[1].allowanceAndBalanceOf.allowanceV2,
+      estimatedTokenAOwned: isPairReversed
+        ? new BigNumber(formattedLpBalance).multipliedBy(etherTokenAAndTokenBPerLp.perLpEstimatedToken1).toFixed(this._toToken.decimals)
+        : new BigNumber(formattedLpBalance).multipliedBy(etherTokenAAndTokenBPerLp.perLpEstimatedToken0).toFixed(this._fromToken.decimals),
+      estimatedTokenBOwned: isPairReversed
+        ? new BigNumber(formattedLpBalance).multipliedBy(etherTokenAAndTokenBPerLp.perLpEstimatedToken0).toFixed(this._fromToken.decimals)
+        : new BigNumber(formattedLpBalance).multipliedBy(etherTokenAAndTokenBPerLp.perLpEstimatedToken1).toFixed(this._toToken.decimals),
+      isFirstSupplier,
+      totalPoolLpToken: etherTotalSupply.toFixed(lpTokenDecimals),
+      selfPoolLpToken: formattedLpBalance,
     };
   }
 
@@ -1957,6 +1964,72 @@ export class UniswapRouterFactory {
   }
 
   /** 
+ * generateAddLiquidityData - Retrieve and massage and process ether amounts passed in to wei to generate data
+ * @param tokenAAmountEther The tokenA amount to add
+ * @param tokenBAmountEther The tokenB amount to add
+ */
+  public async generateAddLiquidityTransaction(
+    tokenAAmountEther: BigNumber,
+    tokenBAmountEther: BigNumber,
+  ): Promise<Transaction> {
+    const tradeExpires = this.generateTradeDeadlineUnixTime();
+    const ethertokenAMinWithSlippageInBigNumber = new BigNumber(tokenAAmountEther)
+      .minus(
+        new BigNumber(tokenAAmountEther)
+          .times(this._settings.slippage)
+          .toFixed(this._fromToken.decimals)
+      )
+
+    const ethertokenBMinWithSlippageInBigNumber = new BigNumber(tokenBAmountEther)
+      .minus(
+        new BigNumber(tokenBAmountEther)
+          .times(this._settings.slippage)
+          .toFixed(this._toToken.decimals)
+      )
+
+    let data: null | string = null;
+    let transaction: null | Transaction = null;
+    switch (this.tradePath()) {
+      case TradePath.ethToErc20:
+        data = this.generateAddLiquidityDataEthAndErc20(
+          UniswapVersion.v2,
+          this._toToken.contractAddress,
+          tokenBAmountEther.shiftedBy(this._toToken.decimals),
+          ethertokenBMinWithSlippageInBigNumber.shiftedBy(this._toToken.decimals), //tokenB(toToken) is erc
+          parseEther(ethertokenAMinWithSlippageInBigNumber), //tokenA(fromToken) is ETH
+          tradeExpires.toString()
+        )
+        transaction = this.buildUpTransactionEth(UniswapVersion.v2, tokenAAmountEther, data);
+        break;
+      case TradePath.erc20ToEth:
+        data = this.generateAddLiquidityDataEthAndErc20(
+          UniswapVersion.v2,
+          this._fromToken.contractAddress,
+          tokenAAmountEther.shiftedBy(this._fromToken.decimals),
+          ethertokenAMinWithSlippageInBigNumber.shiftedBy(this._fromToken.decimals), //tokenA(fromToken) is erc
+          parseEther(ethertokenBMinWithSlippageInBigNumber), //tokenB(toToken) is ETH
+          tradeExpires.toString()
+        )
+        transaction = this.buildUpTransactionEth(UniswapVersion.v2, tokenBAmountEther, data);
+        break;
+      case TradePath.erc20ToErc20:
+        data = this.generateAddLiquidityDataErc20AndErc20(
+          UniswapVersion.v2,
+          this._fromToken.contractAddress,
+          this._toToken.contractAddress,
+          tokenAAmountEther.shiftedBy(this._fromToken.decimals),
+          tokenBAmountEther.shiftedBy(this._toToken.decimals),
+          ethertokenAMinWithSlippageInBigNumber.shiftedBy(this._fromToken.decimals), //tokenA(fromToken) is erc
+          ethertokenBMinWithSlippageInBigNumber.shiftedBy(this._toToken.decimals), //tokenA(fromToken) is erc
+          tradeExpires.toString()
+        )
+        transaction = this.buildUpTransactionErc20(UniswapVersion.v2, data);
+        break;
+    }
+    return transaction;
+  }
+
+  /** 
    * generateRmLiquidityData - Retrieve and massage and process ether amounts passed in to wei to generate data
    * @param lpAmountEther The lpAmount to remove
    * @param tokenAAmountEther The tokenA amount to remove
@@ -2055,7 +2128,7 @@ export class UniswapRouterFactory {
       case TradePath.erc20ToEth:
         data = this.generateRmLiquidityDataEthAndErc20(
           UniswapVersion.v2,
-          this._toToken.contractAddress,
+          this._fromToken.contractAddress,
           weiLpAmountInBigNumber,
           ethertokenAMinWithSlippageInBigNumber.shiftedBy(this._fromToken.decimals), //tokenA(fromToken) is erc
           parseEther(ethertokenBMinWithSlippageInBigNumber), //tokenB(toToken) is ETH
