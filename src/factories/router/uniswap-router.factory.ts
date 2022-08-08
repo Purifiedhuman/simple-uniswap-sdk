@@ -2700,6 +2700,7 @@ export class UniswapRouterFactory {
     etherReserve1: BigNumber,
     etherTotalSupply: BigNumber,
     isFirstSupplier: boolean,
+    etherSelfSupply = new BigNumber(0)
   ): {
     estimatedLPTokens: string;
     estimatedPoolShares: string;
@@ -2715,7 +2716,7 @@ export class UniswapRouterFactory {
     }
 
     //In percent
-    const percentEstimatedPoolShareInBigNumber = liquidity.div(etherTotalSupply.plus(liquidity))
+    const percentEstimatedPoolShareInBigNumber = etherSelfSupply.plus(liquidity).div(etherTotalSupply.plus(liquidity))
       .shiftedBy(2);
 
     return {
