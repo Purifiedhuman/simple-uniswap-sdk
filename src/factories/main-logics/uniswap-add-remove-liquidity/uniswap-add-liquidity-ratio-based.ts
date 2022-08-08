@@ -98,18 +98,18 @@ export class UniswapAddLiquidityRatioBased {
    * @param etherTotalSupply The totalSupply in PairContract
    * @param isFirstSupplier Is first supplier for the pair
    */
-  public async calculatesLpTokensToReceive(
+  public calculatesLpTokensToReceive(
     etherAmount0: BigNumber,
     etherAmount1: BigNumber,
     etherReserve0: BigNumber,
     etherReserve1: BigNumber,
     etherTotalSupply: BigNumber,
     isFirstSupplier: boolean,
-  ): Promise<{
+  ): {
     estimatedLPTokens: string;
     estimatedPoolShares: string;
-  }> {
-    return await this._routes.calculatesLPTokensToReceive(
+  } {
+    return this._routes.calculatesLPTokensToReceive(
       etherAmount0, etherAmount1, etherReserve0, etherReserve1, etherTotalSupply, isFirstSupplier
     );
   }
