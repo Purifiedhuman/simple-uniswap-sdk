@@ -105,12 +105,13 @@ export class UniswapAddLiquidityRatioBased {
     etherReserve1: BigNumber,
     etherTotalSupply: BigNumber,
     isFirstSupplier: boolean,
+    etherSelfSupply = new BigNumber(0)
   ): {
     estimatedLPTokens: string;
     estimatedPoolShares: string;
   } {
     return this._routes.calculatesLPTokensToReceive(
-      etherAmount0, etherAmount1, etherReserve0, etherReserve1, etherTotalSupply, isFirstSupplier
+      etherAmount0, etherAmount1, etherReserve0, etherReserve1, etherTotalSupply, isFirstSupplier, etherSelfSupply
     );
   }
 
