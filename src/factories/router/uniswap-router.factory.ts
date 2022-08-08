@@ -1448,8 +1448,11 @@ export class UniswapRouterFactory {
         tokenAPerTokenB: '',
         tokenBPerTokenA: '',
         isFirstSupplier,
+        token0Reserve: '',
+        token1Reserve: '',
         totalPoolLpToken: '',
         selfPoolLpToken: '',
+        currentPoolShareInPercent: ''
       };
     }
 
@@ -1473,6 +1476,8 @@ export class UniswapRouterFactory {
       etherReserve1,
       etherTotalSupply,
     );
+
+    const currentPoolShareInPercent = new BigNumber(formattedLpBalance).div(etherTotalSupply).shiftedBy(2).toFixed(2);
 
     const tokensFactory = new TokensFactory(
       this._ethersProvider,
@@ -1500,8 +1505,11 @@ export class UniswapRouterFactory {
       tokenAPerTokenB: isPairReversed ? etherTokenAAndTokenBPerLp.perToken1EstimatedToken0 : etherTokenAAndTokenBPerLp.perToken0EstimatedToken1,
       tokenBPerTokenA: isPairReversed ? etherTokenAAndTokenBPerLp.perToken0EstimatedToken1 : etherTokenAAndTokenBPerLp.perToken1EstimatedToken0,
       isFirstSupplier,
+      token0Reserve: etherReserve0.toFixed(),
+      token1Reserve: etherReserve1.toFixed(),
       totalPoolLpToken: etherTotalSupply.toFixed(lpTokenDecimals),
       selfPoolLpToken: formattedLpBalance,
+      currentPoolShareInPercent,
     };
   }
 
@@ -2678,13 +2686,14 @@ export class UniswapRouterFactory {
 
   /**
    * Calculates LP Tokens to receive
-   * @param amount0 The ether amount0 to trade in PairContract
-   * @param amount1 The ether amount1 to trade in PairContract
-   * @param reserve0 The ether reserve0 in PairContract
-   * @param reserve1 The ether reserve0 in PairContract
-   * @param totalSupply The totalSupply in PairContract
+   * @param etherAmount0 The ether amount0 to trade in PairContract
+   * @param etherAmount1 The ether amount1 to trade in PairContract
+   * @param etherReserve0 The ether reserve0 in PairContract
+   * @param etherReserve1 The ether reserve0 in PairContract
+   * @param etherTotalSupply The totalSupply in PairContract
+   * @param isFirstSupplier Is first supplier for the pair
    */
-  private calculatesLPTokensToReceive(
+  public calculatesLPTokensToReceive(
     etherAmount0: BigNumber,
     etherAmount1: BigNumber,
     etherReserve0: BigNumber,

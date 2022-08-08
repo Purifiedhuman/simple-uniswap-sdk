@@ -6,8 +6,8 @@ const routeTest = async () => {
   const ethereumAddress = '0xa207aDd901BF900C81Feb04D33968a0132bD68DA';
 
   const uniswapMain = new UniswapAddRmLiquidityFactory({
-    tokenATokenContractAddress: '0xC285cc080a40aE0Fb4Ae198b2FB5cbdb4A7F3E66',
-    tokenBTokenContractAddress: '0x8a1aaE68BA6DDbfaDe8359f18321e87d8ab8Fae9',
+    tokenATokenContractAddress: '0x8a1aaE68BA6DDbfaDe8359f18321e87d8ab8Fae9',
+    tokenBTokenContractAddress: '0xC285cc080a40aE0Fb4Ae198b2FB5cbdb4A7F3E66',
     ethereumAddress,
     chainId: 80001,
     providerUrl: 'https://polygon-mumbai.g.alchemy.com/v2/LOsCmKKqyJojD5OsLyqlAFVquaysK2Wb',
@@ -41,9 +41,9 @@ const routeTest = async () => {
     }),
   });
 
-  const uniswapLiquidityFactory = await uniswapMain.createRemoveLiquidityFactory();
+  const uniswapLiquidityFactory = await uniswapMain.createAddLiquidityRatioBasedFactory();
 
-  const rmTradeInfo = await uniswapLiquidityFactory.getRmTradeInfo();
+  const rmTradeInfo = await uniswapLiquidityFactory.getAddLiquidityTradeInfo();
 
   // uniswapLiquidityFactory?.quoteChanged$.subscribe(
   //   (quote) => {

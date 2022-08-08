@@ -90,6 +90,31 @@ export class UniswapAddLiquidityRatioBased {
   }
 
   /**
+   * Calculates LP Tokens to receive
+   * @param etherAmount0 The ether amount0 to trade in PairContract
+   * @param etherAmount1 The ether amount1 to trade in PairContract
+   * @param etherReserve0 The ether reserve0 in PairContract
+   * @param etherReserve1 The ether reserve0 in PairContract
+   * @param etherTotalSupply The totalSupply in PairContract
+   * @param isFirstSupplier Is first supplier for the pair
+   */
+  public async calculatesLpTokensToReceive(
+    etherAmount0: BigNumber,
+    etherAmount1: BigNumber,
+    etherReserve0: BigNumber,
+    etherReserve1: BigNumber,
+    etherTotalSupply: BigNumber,
+    isFirstSupplier: boolean,
+  ): Promise<{
+    estimatedLPTokens: string;
+    estimatedPoolShares: string;
+  }> {
+    return await this._routes.calculatesLPTokensToReceive(
+      etherAmount0, etherAmount1, etherReserve0, etherReserve1, etherTotalSupply, isFirstSupplier
+    );
+  }
+
+  /**
    * buildTransaction - build transaction to add liquidity
    * @param tokenAAmountEther calculated tokenA amount
    * @param tokenBAmountEther calculated tokenB amount
@@ -203,11 +228,14 @@ export class UniswapAddLiquidityRatioBased {
       estimatedTokenBOwned: trade.estimatedTokenBOwned,
       tokenAPerTokenB: trade.tokenAPerTokenB,
       tokenBPerTokenA: trade.tokenBPerTokenA,
+      token0Reserve: trade.token0Reserve,
+      token1Reserve: trade.token1Reserve,
       allowanceA: trade.allowanceA,
       allowanceB: trade.allowanceB,
       isFirstSupplier: trade.isFirstSupplier,
       selfPoolLpToken: trade.selfPoolLpToken,
-      totalPoolLpToken: trade.totalPoolLpToken
+      totalPoolLpToken: trade.totalPoolLpToken,
+      currentPoolShareInPercent: trade.currentPoolShareInPercent
     });
   }
 
