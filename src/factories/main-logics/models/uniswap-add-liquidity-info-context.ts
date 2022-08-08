@@ -14,8 +14,8 @@ export interface UniswapAddLiquidityInfoContext {
   tokenBPerTokenA: string;
   allowanceA: string;
   allowanceB: string;
-  token0Reserve: string;
-  token1Reserve: string;
+  tokenAReserve: string;
+  tokenBReserve: string;
   selfPoolLpToken: string;
   totalPoolLpToken: string;
   currentPoolShareInPercent: string;
