@@ -1081,7 +1081,9 @@ export class UniswapRouterFactory {
       etherReserve0,
       etherReserve1,
       etherTotalSupply,
-      isFirstSupplier
+      isFirstSupplier,
+      new BigNumber(0),
+      lpTokenDecimals
     );
 
     return {
@@ -2692,6 +2694,8 @@ export class UniswapRouterFactory {
    * @param etherReserve1 The ether reserve0 in PairContract
    * @param etherTotalSupply The totalSupply in PairContract
    * @param isFirstSupplier Is first supplier for the pair
+   * @param etherSelfSupply existing supplied lp tokens
+   * @param decimals decimals for format lp tokens
    */
   public calculatesLPTokensToReceive(
     etherAmount0: BigNumber,
@@ -2700,7 +2704,8 @@ export class UniswapRouterFactory {
     etherReserve1: BigNumber,
     etherTotalSupply: BigNumber,
     isFirstSupplier: boolean,
-    etherSelfSupply = new BigNumber(0)
+    etherSelfSupply = new BigNumber(0),
+    decimals = 18,
   ): {
     estimatedLPTokens: string;
     estimatedPoolShares: string;
@@ -2720,7 +2725,7 @@ export class UniswapRouterFactory {
       .shiftedBy(2);
 
     return {
-      estimatedLPTokens: liquidity.toFixed(),
+      estimatedLPTokens: liquidity.toFixed(decimals),
       estimatedPoolShares: percentEstimatedPoolShareInBigNumber.isGreaterThan(100) ? '100' : percentEstimatedPoolShareInBigNumber.toFixed(2)
     };
   }
