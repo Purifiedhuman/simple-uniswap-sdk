@@ -1,4 +1,5 @@
-import { Subject } from 'rxjs';
+import { Subject, timer } from 'rxjs';
+import { startWith, switchMap, takeUntil } from 'rxjs/operators';
 import { CoinGecko } from '../../../coin-gecko';
 import { ChainId } from '../../../enums/chain-id';
 import { UniswapVersion } from '../../../enums/uniswap-version';
@@ -17,7 +18,9 @@ export class UniswapMyLiquidity {
     this._uniswapPairFactoryContext.ethersProvider
   );
 
-  private _watchingBlocks = false;
+  private _timerEnabled = false;
+  private readonly _triggerStopTimer$ = new Subject();
+  private readonly _triggerRsTimer$ = new Subject();
   private _currentLiquidityInfoContext: LiquidityInfoContext | undefined;
   public quoteChanged$: Map<string, Subject<LiquidityInfoContextSingle>> = new Map();
 
@@ -112,14 +115,23 @@ export class UniswapMyLiquidity {
    * Watch trade price move automatically emitting the stream if it changes
    */
   private watchTradePrice(): void {
-    if (!this._watchingBlocks) {
-      this._uniswapPairFactoryContext.ethersProvider.provider.on(
-        'block',
-        async () => {
-          await this.handleNewBlock();
-        }
-      );
-      this._watchingBlocks = true;
+    if (!this._timerEnabled) {
+      // this._uniswapPairFactoryContext.ethersProvider.provider.on(
+      //   'block',
+      //   async () => {
+      //     await this.handleTimerBasedNewContextData();
+      //   }
+      // );
+      this._triggerRsTimer$
+        .pipe(
+          startWith(undefined as void),
+          switchMap(() => timer(5000, 5000)
+            .pipe(takeUntil(this._triggerStopTimer$)))
+        )
+        .subscribe(() => {
+          this.handleTimerBasedNewContextData();
+        })
+      this._timerEnabled = true;
     }
   }
 
@@ -127,16 +139,21 @@ export class UniswapMyLiquidity {
    * unwatch any block streams
    */
   private unwatchTradePrice(): void {
-    this._uniswapPairFactoryContext.ethersProvider.provider.removeAllListeners(
-      'block'
-    );
-    this._watchingBlocks = false;
+    // this._uniswapPairFactoryContext.ethersProvider.provider.removeAllListeners(
+    //   'block'
+    // );
+    this._triggerStopTimer$.next();
+    this._timerEnabled = false;
   }
 
   /**
-   * Handle new block for the trade price moving automatically emitting the stream if it changes
+   * @param forceResyncTimer resync timer 
+   * Handle new data observable, runs on timer
    */
-  private async handleNewBlock(): Promise<void> {
+  public async handleTimerBasedNewContextData(forceResyncTimer = false): Promise<void> {
+    if (forceResyncTimer) {
+      this._triggerRsTimer$.next();
+    };
     const cachedAddresses = this._currentLiquidityInfoContext?.liquidityInfoContext.map((_context) => _context.pairAddress) ?? [];
     const liquidityInfo = await this._uniswapRouterFactory.getPairLiquidityInfo(cachedAddresses);
 

@@ -2,6 +2,7 @@ import { UniswapVersion } from '../enums/uniswap-version';
 import { UniswapPairSettings } from '../factories/pair/models/uniswap-pair-settings';
 import { UniswapSwapFactory } from '../factories/main-logics/uniswap-swap/uniswap-swap.factory';
 import { TradeDirection } from '..';
+import { timer } from 'rxjs';
 
 const routeTest = async () => {
   const ethereumAddress = '0xa207aDd901BF900C81Feb04D33968a0132bD68DA';
@@ -51,13 +52,15 @@ const routeTest = async () => {
   );
 
   let tradeContext = uniswapLiquidityFactory.trade('3', TradeDirection.input);
-  tradeContext = uniswapLiquidityFactory.trade('30', TradeDirection.input);
-  tradeContext = uniswapLiquidityFactory.trade('300', TradeDirection.input);
-  tradeContext = uniswapLiquidityFactory.trade('3000', TradeDirection.input);
+  // tradeContext = uniswapLiquidityFactory.trade('30', TradeDirection.input);
+  // tradeContext = uniswapLiquidityFactory.trade('300', TradeDirection.input);
+  // tradeContext = uniswapLiquidityFactory.trade('3000', TradeDirection.input);
 
   console.log((await tradeContext).baseConvertRequest);
 
-
+  //after 9 seconds, emit value
+  timer(9000).subscribe(() => uniswapLiquidityFactory.handleTimerBasedNewContextData(true));
+  // timer(9000).subscribe(() => uniswapLiquidityFactory.destroy());
 };
 
 routeTest();

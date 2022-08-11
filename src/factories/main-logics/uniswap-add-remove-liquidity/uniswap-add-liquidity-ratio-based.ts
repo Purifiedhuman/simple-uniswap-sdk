@@ -1,5 +1,6 @@
 import BigNumber from 'bignumber.js';
-import { Subject } from 'rxjs';
+import { Subject, timer } from 'rxjs';
+import { startWith, switchMap, takeUntil } from 'rxjs/operators';
 import { CoinGecko } from '../../../coin-gecko';
 import { Constants } from '../../../common/constants';
 import { deepClone } from '../../../common/utils/deep-clone';
@@ -35,7 +36,9 @@ export class UniswapAddLiquidityRatioBased {
     this._uniswapPairFactoryContext.ethersProvider
   );
 
-  private _watchingBlocks = false;
+  private _timerEnabled = false;
+  private readonly _triggerStopTimer$ = new Subject();
+  private readonly _triggerRsTimer$ = new Subject();
   private _currentAddLiquidityInfoContext: UniswapAddLiquidityInfoContext | undefined;
   public quoteChanged$: Subject<UniswapAddLiquidityInfoContext> = new Subject<UniswapAddLiquidityInfoContext>();
 
@@ -80,7 +83,7 @@ export class UniswapAddLiquidityRatioBased {
   ): Promise<UniswapAddLiquidityInfoContext> {
     const tradeInfo = await this.findPairAddTradeInfo();
 
-    if (!this._watchingBlocks) {
+    if (!this._timerEnabled) {
       this._currentAddLiquidityInfoContext = this.buildCurrentInfoContext(tradeInfo);
     }
 
@@ -252,14 +255,23 @@ export class UniswapAddLiquidityRatioBased {
    * Watch trade price move automatically emitting the stream if it changes
    */
   private watchTradePrice(): void {
-    if (!this._watchingBlocks) {
-      this._uniswapPairFactoryContext.ethersProvider.provider.on(
-        'block',
-        async () => {
-          await this.handleNewBlock();
-        }
-      );
-      this._watchingBlocks = true;
+    if (!this._timerEnabled) {
+      // this._uniswapPairFactoryContext.ethersProvider.provider.on(
+      //   'block',
+      //   async () => {
+      //     await this.handleNewBlock();
+      //   }
+      // );
+      this._triggerRsTimer$
+        .pipe(
+          startWith(undefined as void),
+          switchMap(() => timer(5000, 5000)
+            .pipe(takeUntil(this._triggerStopTimer$)))
+        )
+        .subscribe(() => {
+          this.handleTimerBasedNewContextData();
+        })
+      this._timerEnabled = true;
     }
   }
 
@@ -267,16 +279,21 @@ export class UniswapAddLiquidityRatioBased {
    * unwatch any block streams
    */
   private unwatchTradePrice(): void {
-    this._uniswapPairFactoryContext.ethersProvider.provider.removeAllListeners(
-      'block'
-    );
-    this._watchingBlocks = false;
+    // this._uniswapPairFactoryContext.ethersProvider.provider.removeAllListeners(
+    //   'block'
+    // );
+    this._triggerStopTimer$.next();
+    this._timerEnabled = false;
   }
 
   /**
    * Handle new block for the trade price moving automatically emitting the stream if it changes
    */
-  private async handleNewBlock(): Promise<void> {
+  private async handleTimerBasedNewContextData(forceResyncTimer = false): Promise<void> {
+    if (forceResyncTimer) {
+      this._triggerRsTimer$.next();
+    };
+
     if (this.quoteChanged$.observers.length > 0 && this._currentAddLiquidityInfoContext) {
       const tradeInfo = await this.getAddLiquidityTradeInfo();
 

@@ -1,5 +1,6 @@
 import BigNumber from 'bignumber.js';
-import { Subject } from 'rxjs';
+import { Subject, timer } from 'rxjs';
+import { startWith, switchMap, takeUntil } from 'rxjs/operators';
 import { CoinGecko } from '../../../coin-gecko';
 import { Constants } from '../../../common/constants';
 import { ErrorCodes } from '../../../common/errors/error-codes';
@@ -9,6 +10,10 @@ import { getTradePath } from '../../../common/utils/trade-path';
 import { TradePath } from '../../../enums/trade-path';
 import { UniswapVersion } from '../../../enums/uniswap-version';
 import { uniswapContracts } from '../../../uniswap-contract-context/get-uniswap-contracts';
+import { CurrentLiquidityTradeContext } from '../../pair/models/current-liquidity-trade-context';
+import { LiquidityTradeContext } from '../../pair/models/liquidity-trade-context';
+import { TradeDirection } from '../../pair/models/trade-direction';
+import { Transaction } from '../../pair/models/transaction';
 import { AllPossibleRoutes } from '../../router/models/all-possible-routes';
 import { BestRouteQuotes } from '../../router/models/best-route-quotes';
 import { RouteQuote } from '../../router/models/route-quote';
@@ -16,10 +21,6 @@ import { UniswapRouterFactory } from '../../router/uniswap-router.factory';
 import { AllowanceAndBalanceOf } from '../../token/models/allowance-balance-of';
 import { Token } from '../../token/models/token';
 import { TokenFactory } from '../../token/token.factory';
-import { CurrentLiquidityTradeContext } from '../../pair/models/current-liquidity-trade-context';
-import { LiquidityTradeContext } from '../../pair/models/liquidity-trade-context';
-import { TradeDirection } from '../../pair/models/trade-direction';
-import { Transaction } from '../../pair/models/transaction';
 import { UniswapAddRmPairFactoryContexts } from '../models/uniswap-add-rm-pair-factory-context';
 
 export class UniswapAddLiquidity {
@@ -45,7 +46,9 @@ export class UniswapAddLiquidity {
     this._uniswapPairFactoryContext.ethersProvider
   );
 
-  private _watchingBlocks = false;
+  private _timerEnabled = false;
+  private readonly _triggerStopTimer$ = new Subject();
+  private readonly _triggerRsTimer$ = new Subject();
   private _currentLiquidityTradeContext: CurrentLiquidityTradeContext | undefined;
   public quoteChanged$: Subject<LiquidityTradeContext> = new Subject<LiquidityTradeContext>();
 
@@ -388,14 +391,24 @@ export class UniswapAddLiquidity {
    * Watch trade price move automatically emitting the stream if it changes
    */
   private watchTradePrice(): void {
-    if (!this._watchingBlocks) {
-      this._uniswapPairFactoryContext.ethersProvider.provider.on(
-        'block',
-        async () => {
-          await this.handleNewBlock();
-        }
-      );
-      this._watchingBlocks = true;
+    if (!this._timerEnabled) {
+      // this._uniswapPairFactoryContext.ethersProvider.provider.on(
+      //   'block',
+      //   async () => {
+      //     await this.handleNewBlock();
+      //   }
+      // );
+      //Start timer after 5 seconds, emits every 5 seconds
+      this._triggerRsTimer$
+        .pipe(
+          startWith(undefined as void),
+          switchMap(() => timer(5000, 5000)
+            .pipe(takeUntil(this._triggerStopTimer$)))
+        )
+        .subscribe(() => {
+          this.handleTimerBasedNewContextData();
+        })
+      this._timerEnabled = true;
     }
   }
 
@@ -403,16 +416,21 @@ export class UniswapAddLiquidity {
    * unwatch any block streams
    */
   private unwatchTradePrice(): void {
-    this._uniswapPairFactoryContext.ethersProvider.provider.removeAllListeners(
-      'block'
-    );
-    this._watchingBlocks = false;
+    // this._uniswapPairFactoryContext.ethersProvider.provider.removeAllListeners(
+    //   'block'
+    // );
+    this._triggerStopTimer$.next();
+    this._timerEnabled = false;
   }
 
   /**
    * Handle new block for the trade price moving automatically emitting the stream if it changes
    */
-  private async handleNewBlock(): Promise<void> {
+  private async handleTimerBasedNewContextData(forceResyncTimer = false): Promise<void> {
+    if (forceResyncTimer) {
+      this._triggerRsTimer$.next();
+    };
+
     if (this.quoteChanged$.observers.length > 0 && this._currentLiquidityTradeContext) {
       const trade = await this.executeTradePath(
         new BigNumber(this._currentLiquidityTradeContext.baseConvertRequest),
