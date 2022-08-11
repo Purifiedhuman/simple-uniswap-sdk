@@ -150,7 +150,7 @@ export class UniswapMyLiquidity {
    * @param forceResyncTimer resync timer 
    * Handle new data observable, runs on timer
    */
-  public async handleTimerBasedNewContextData(forceResyncTimer = false): Promise<void> {
+  public async handleTimerBasedNewContextData(forceResyncTimer = false): Promise<number> {
     if (forceResyncTimer) {
       this._triggerRsTimer$.next();
     };
@@ -175,5 +175,7 @@ export class UniswapMyLiquidity {
         }
       }
     });
+
+    return 1;
   }
 }

@@ -245,7 +245,7 @@ export class UniswapRmLiquidity {
   /**
    * Handle new block for the trade price moving automatically emitting the stream if it changes
    */
-  private async handleTimerBasedNewContextData(forceResyncTimer = false): Promise<void> {
+  private async handleTimerBasedNewContextData(forceResyncTimer = false): Promise<number> {
     if (forceResyncTimer) {
       this._triggerRsTimer$.next();
     };
@@ -261,7 +261,8 @@ export class UniswapRmLiquidity {
         this._currentRmLiquidityInfoContext = this.buildCurrentInfoContext(tradeInfo);
         this.quoteChanged$.next(tradeInfo);
       }
-
     }
+
+    return 1;
   }
 }

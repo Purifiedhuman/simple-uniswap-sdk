@@ -560,7 +560,7 @@ export class UniswapSwap {
    * @param forceResyncTimer resync timer 
    * Handle new data observable, runs on timer
    */
-  public async handleTimerBasedNewContextData(forceResyncTimer = false): Promise<void> {
+  public async handleTimerBasedNewContextData(forceResyncTimer = false): Promise<number> {
     if (forceResyncTimer) {
       this._triggerRsTimer$.next();
     };
@@ -595,5 +595,7 @@ export class UniswapSwap {
         }
       }
     }
+
+    return 1;
   }
 }
