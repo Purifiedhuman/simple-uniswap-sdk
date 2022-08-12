@@ -243,9 +243,10 @@ export class UniswapRmLiquidity {
   }
 
   /**
-   * Handle new block for the trade price moving automatically emitting the stream if it changes
+   * @param forceResyncTimer resync timer 
+   * Handle new data observable, runs on timer
    */
-  private async handleTimerBasedNewContextData(forceResyncTimer = false): Promise<number> {
+  public async handleTimerBasedNewContextData(forceResyncTimer = false): Promise<number> {
     if (forceResyncTimer) {
       this._triggerRsTimer$.next();
     };
