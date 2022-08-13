@@ -296,7 +296,7 @@ export class UniswapAddLiquidityRatioBased {
     };
 
     if (this.quoteChanged$.observers.length > 0 && this._currentAddLiquidityInfoContext) {
-      const tradeInfo = await this.getAddLiquidityTradeInfo();
+      const tradeInfo = await this.findPairAddTradeInfo();
 
       if (
         tradeInfo.tokenAPerLpToken !== this._currentAddLiquidityInfoContext.tokenAPerLpToken ||

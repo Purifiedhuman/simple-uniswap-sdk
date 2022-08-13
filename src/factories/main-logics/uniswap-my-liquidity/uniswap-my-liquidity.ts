@@ -63,7 +63,7 @@ export class UniswapMyLiquidity {
   ): Promise<LiquidityInfoContext> {
     this.destroy();
 
-    const liquidityContext = this.executeLiquidityInfo(pairAddresses);
+    const liquidityContext = await this.executeLiquidityInfo(pairAddresses);
     this.watchTradePrice();
 
     return liquidityContext;

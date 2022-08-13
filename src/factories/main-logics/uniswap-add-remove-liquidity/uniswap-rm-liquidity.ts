@@ -252,7 +252,7 @@ export class UniswapRmLiquidity {
     };
 
     if (this.quoteChanged$.observers.length > 0 && this._currentRmLiquidityInfoContext) {
-      const tradeInfo = await this.getRmTradeInfo();
+      const tradeInfo = await this.findPairRmTradeInfo();
 
       if (
         tradeInfo.tokenAPerLpToken !== this._currentRmLiquidityInfoContext.tokenAPerLpToken ||
