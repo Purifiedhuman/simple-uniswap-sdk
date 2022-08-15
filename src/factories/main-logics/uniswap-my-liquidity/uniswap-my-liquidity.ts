@@ -152,6 +152,7 @@ export class UniswapMyLiquidity {
    */
   public async handleTimerBasedNewContextData(forceResyncTimer = false): Promise<number> {
     if (forceResyncTimer) {
+      this._triggerStopTimer$.next();
       this._triggerRsTimer$.next();
     };
     const cachedAddresses = this._currentLiquidityInfoContext?.liquidityInfoContext.map((_context) => _context.pairAddress) ?? [];

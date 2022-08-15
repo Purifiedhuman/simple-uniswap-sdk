@@ -292,6 +292,7 @@ export class UniswapAddLiquidityRatioBased {
    */
   public async handleTimerBasedNewContextData(forceResyncTimer = false): Promise<number> {
     if (forceResyncTimer) {
+      this._triggerStopTimer$.next();
       this._triggerRsTimer$.next();
     };
 
