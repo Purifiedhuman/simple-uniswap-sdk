@@ -1,6 +1,6 @@
 import BigNumber from 'bignumber.js';
 import { Subject, timer } from 'rxjs';
-import { startWith, switchMap, takeUntil } from 'rxjs/operators';
+import { switchMap, takeUntil } from 'rxjs/operators';
 import { CoinGecko } from '../../../coin-gecko';
 import { Constants } from '../../../common/constants';
 import { ErrorCodes } from '../../../common/errors/error-codes';
@@ -50,7 +50,6 @@ export class UniswapSwap {
     this._uniswapPairFactoryContext.ethersProvider
   );
 
-  private _timerEnabled = false;
   private readonly _triggerStopTimer$ = new Subject();
   private readonly _triggerRsTimer$ = new Subject();
   private _currentTradeContext: CurrentTradeContext | undefined;
@@ -59,7 +58,17 @@ export class UniswapSwap {
   constructor(
     private _coinGecko: CoinGecko,
     private _uniswapPairFactoryContext: UniswapPairFactoryContext
-  ) { }
+  ) {
+    //Start timer after 5 seconds, emits every 5 seconds
+    this._triggerRsTimer$
+      .pipe(
+        switchMap(() => timer(5000, 5000)
+          .pipe(takeUntil(this._triggerStopTimer$)))
+      )
+      .subscribe(() => {
+        this.handleTimerBasedNewContextData();
+      })
+  }
 
   /**
    * The to token
@@ -524,36 +533,15 @@ export class UniswapSwap {
    * Watch trade price move automatically emitting the stream if it changes
    */
   private watchTradePrice(): void {
-    if (!this._timerEnabled) {
-      // this._uniswapPairFactoryContext.ethersProvider.provider.on(
-      //   'block',
-      //   async () => {
-      //     await this.handleNewBlock();
-      //   }
-      // );
-      //Start timer after 5 seconds, emits every 5 seconds
-      this._triggerRsTimer$
-        .pipe(
-          startWith(undefined as void),
-          switchMap(() => timer(5000, 5000)
-            .pipe(takeUntil(this._triggerStopTimer$)))
-        )
-        .subscribe(() => {
-          this.handleTimerBasedNewContextData();
-        })
-      this._timerEnabled = true;
-    }
+    this._triggerStopTimer$.next();
+    this._triggerRsTimer$.next();
   }
 
   /**
    * unwatch any block streams
    */
   private unwatchTradePrice(): void {
-    // this._uniswapPairFactoryContext.ethersProvider.provider.removeAllListeners(
-    //   'block'
-    // );
     this._triggerStopTimer$.next();
-    this._timerEnabled = false;
   }
 
   /**

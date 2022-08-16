@@ -1,5 +1,5 @@
 import { Subject, timer } from 'rxjs';
-import { startWith, switchMap, takeUntil } from 'rxjs/operators';
+import { switchMap, takeUntil } from 'rxjs/operators';
 import { CoinGecko } from '../../../coin-gecko';
 import { ChainId } from '../../../enums/chain-id';
 import { UniswapVersion } from '../../../enums/uniswap-version';
@@ -18,7 +18,6 @@ export class UniswapMyLiquidity {
     this._uniswapPairFactoryContext.ethersProvider
   );
 
-  private _timerEnabled = false;
   private readonly _triggerStopTimer$ = new Subject();
   private readonly _triggerRsTimer$ = new Subject();
   private _currentLiquidityInfoContext: LiquidityInfoContext | undefined;
@@ -27,7 +26,17 @@ export class UniswapMyLiquidity {
   constructor(
     private _coinGecko: CoinGecko,
     private _uniswapPairFactoryContext: UniswapMyPairFactoryContext
-  ) { }
+  ) {
+    //Start timer after 5 seconds, emits every 5 seconds
+    this._triggerRsTimer$
+      .pipe(
+        switchMap(() => timer(5000, 5000)
+          .pipe(takeUntil(this._triggerStopTimer$)))
+      )
+      .subscribe(() => {
+        this.handleTimerBasedNewContextData();
+      })
+  }
 
   /**
    * Get the provider url
@@ -40,11 +49,11 @@ export class UniswapMyLiquidity {
    * Destroy the trade instance watchers + subscriptions
    */
   public destroy(): void {
-    this.quoteChanged$.forEach((subject) => {
-      for (let i = 0; i < subject.observers.length; i++) {
-        subject.observers[i].complete();
-      }
-    })
+    // this.quoteChanged$.forEach((subject) => {
+    //   for (let i = 0; i < subject.observers.length; i++) {
+    //     subject.observers[i].complete();
+    //   }
+    // })
 
     this.unwatchTradePrice();
   }
@@ -115,35 +124,15 @@ export class UniswapMyLiquidity {
    * Watch trade price move automatically emitting the stream if it changes
    */
   private watchTradePrice(): void {
-    if (!this._timerEnabled) {
-      // this._uniswapPairFactoryContext.ethersProvider.provider.on(
-      //   'block',
-      //   async () => {
-      //     await this.handleTimerBasedNewContextData();
-      //   }
-      // );
-      this._triggerRsTimer$
-        .pipe(
-          startWith(undefined as void),
-          switchMap(() => timer(5000, 5000)
-            .pipe(takeUntil(this._triggerStopTimer$)))
-        )
-        .subscribe(() => {
-          this.handleTimerBasedNewContextData();
-        })
-      this._timerEnabled = true;
-    }
+    this._triggerStopTimer$.next();
+    this._triggerRsTimer$.next();
   }
 
   /**
    * unwatch any block streams
    */
   private unwatchTradePrice(): void {
-    // this._uniswapPairFactoryContext.ethersProvider.provider.removeAllListeners(
-    //   'block'
-    // );
     this._triggerStopTimer$.next();
-    this._timerEnabled = false;
   }
 
   /**
