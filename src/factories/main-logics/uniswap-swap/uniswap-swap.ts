@@ -179,7 +179,7 @@ export class UniswapSwap {
 
     this._currentTradeContext = this.buildCurrentTradeContext(trade);
 
-    this.watchTradePrice();
+    // this.watchTradePrice();
 
     return trade;
   }
@@ -529,13 +529,13 @@ export class UniswapSwap {
     );
   }
 
-  /**
-   * Watch trade price move automatically emitting the stream if it changes
-   */
-  private watchTradePrice(): void {
-    this._triggerStopTimer$.next();
-    this._triggerRsTimer$.next();
-  }
+  // /**
+  //  * Watch trade price move automatically emitting the stream if it changes
+  //  */
+  // private watchTradePrice(): void {
+  //   this._triggerStopTimer$.next();
+  //   this._triggerRsTimer$.next();
+  // }
 
   /**
    * unwatch any block streams

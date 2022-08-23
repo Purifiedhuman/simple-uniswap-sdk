@@ -73,7 +73,7 @@ export class UniswapMyLiquidity {
     this.destroy();
 
     const liquidityContext = await this.executeLiquidityInfo(pairAddresses);
-    this.watchTradePrice();
+    // this.watchTradePrice();
 
     return liquidityContext;
   }
@@ -120,13 +120,13 @@ export class UniswapMyLiquidity {
     };
   }
 
-  /**
-   * Watch trade price move automatically emitting the stream if it changes
-   */
-  private watchTradePrice(): void {
-    this._triggerStopTimer$.next();
-    this._triggerRsTimer$.next();
-  }
+  // /**
+  //  * Watch trade price move automatically emitting the stream if it changes
+  //  */
+  // private watchTradePrice(): void {
+  //   this._triggerStopTimer$.next();
+  //   this._triggerRsTimer$.next();
+  // }
 
   /**
    * unwatch any block streams
