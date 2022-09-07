@@ -291,7 +291,9 @@ export class UniswapAddLiquidityRatioBased {
       if (
         tradeInfo.tokenAPerLpToken !== this._currentAddLiquidityInfoContext.tokenAPerLpToken ||
         tradeInfo.tokenBPerLpToken !== this._currentAddLiquidityInfoContext.tokenBPerLpToken ||
-        tradeInfo.lpTokenBalance !== this._currentAddLiquidityInfoContext.lpTokenBalance
+        tradeInfo.lpTokenBalance !== this._currentAddLiquidityInfoContext.lpTokenBalance ||
+        tradeInfo.allowanceA !== this._currentAddLiquidityInfoContext.allowanceA ||
+        tradeInfo.allowanceB !== this._currentAddLiquidityInfoContext.allowanceB
       ) {
         this._currentAddLiquidityInfoContext = this.buildCurrentInfoContext(tradeInfo);
         this.quoteChanged$.next(tradeInfo);
