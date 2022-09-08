@@ -12,4 +12,6 @@ export interface CurrentTradeContext {
   transaction: Transaction;
   routeText: string;
   tradeExpires: number;
+  hasEnoughAllowance: boolean;
+  approvalTransaction?: Transaction | undefined;
 }

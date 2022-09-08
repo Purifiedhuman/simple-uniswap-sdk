@@ -314,6 +314,8 @@ export class UniswapSwap {
       transaction: trade.transaction,
       routeText: trade.routeText,
       tradeExpires: trade.tradeExpires,
+      hasEnoughAllowance: trade.hasEnoughAllowance,
+      approvalTransaction: trade.approvalTransaction
     });
   }
 
@@ -561,28 +563,19 @@ export class UniswapSwap {
       );
 
       if (
-        trade.fromToken.contractAddress ===
-        this._currentTradeContext.fromToken.contractAddress &&
-        trade.toToken.contractAddress ===
-        this._currentTradeContext.toToken.contractAddress &&
-        trade.transaction.from ===
-        this._uniswapPairFactoryContext.ethereumAddress
+        trade.expectedConvertQuote !==
+        this._currentTradeContext.expectedConvertQuote ||
+        trade.routeText !== this._currentTradeContext.routeText ||
+        trade.liquidityProviderFee !==
+        this._currentTradeContext.liquidityProviderFee ||
+        this._currentTradeContext.tradeExpires >
+        this._uniswapRouterFactory.generateTradeDeadlineUnixTime() ||
+        trade.approvalTransaction !== this._currentTradeContext.approvalTransaction
       ) {
-        if (
-          trade.baseConvertRequest === this._currentTradeContext.baseConvertRequest
-          && (
-            trade.expectedConvertQuote !==
-            this._currentTradeContext.expectedConvertQuote ||
-            trade.routeText !== this._currentTradeContext.routeText ||
-            trade.liquidityProviderFee !==
-            this._currentTradeContext.liquidityProviderFee ||
-            this._currentTradeContext.tradeExpires >
-            this._uniswapRouterFactory.generateTradeDeadlineUnixTime())
-        ) {
-          this._currentTradeContext = this.buildCurrentTradeContext(trade);
-          this.quoteChanged$.next(trade);
-        }
+        this._currentTradeContext = this.buildCurrentTradeContext(trade);
+        this.quoteChanged$.next(trade);
       }
+
     }
 
     return 1;
